@@ -34,139 +34,263 @@ try {
         firestoreAvailable = true;
         console.log('🔥 Firebase initialized successfully');
     } else {
-        console.warn('⚠️ FIREBASE_CONFIG not found. Using in-memory storage (not recommended for production)');
+        console.warn('⚠️ FIREBASE_CONFIG not found. Using in-memory storage');
     }
 } catch (error) {
     console.error('❌ Firebase initialization error:', error.message);
-    console.warn('⚠️ Falling back to in-memory storage');
 }
 
-// ========== IN-MEMORY FALLBACK (في حالة عدم وجود Firebase) ==========
-let inMemoryQuestions = [
-    {
-        id: 1,
-        text: '"The disabled need care" - "The disabled" functions as:',
-        options: ['Singular noun', 'Plural noun', 'Adjective only', 'Adverb'],
-        correct: 1
-    },
-    {
-        id: 2,
-        text: '"It isn\'t my car, Mine is red" - The underlined words are:',
-        options: ['Subject pronoun + Object pronoun', 'Possessive adjective + Possessive pronoun', 'Object pronoun + Subject pronoun', 'Two nouns'],
-        correct: 1
-    }
-];
-let inMemorySubmissions = [];
-let nextId = 3;
+// ========== IN-MEMORY FALLBACK ==========
+let inMemoryData = {
+    groups: [],
+    exams: [],
+    questions: [],
+    submissions: []
+};
+let nextId = 1;
 
 // ========== FUNCTIONS ==========
 
-// جلب كل الأسئلة
-async function getQuestions() {
+// === Groups ===
+async function getGroups() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('questions').orderBy('id').get();
+            const snapshot = await db.collection('groups').orderBy('name').get();
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
         } catch (error) {
-            console.error('Error fetching questions from Firestore:', error);
+            console.error('Error fetching groups:', error);
         }
     }
-    return inMemoryQuestions;
+    return inMemoryData.groups;
 }
 
-// حفظ أو تحديث سؤال
-async function saveQuestionToDb(question) {
+async function saveGroup(group) {
     if (firestoreAvailable && db) {
         try {
-            // نبحث عن السؤال في Firestore
-            const snapshot = await db.collection('questions').where('id', '==', question.id).get();
-            if (!snapshot.empty) {
-                // تحديث
-                const docRef = snapshot.docs[0].ref;
-                await docRef.update(question);
-                return question;
-            } else {
-                // إضافة جديد
-                const docRef = await db.collection('questions').add(question);
-                return { id: docRef.id, ...question };
-            }
+            const docRef = await db.collection('groups').add(group);
+            return { id: docRef.id, ...group };
         } catch (error) {
-            console.error('Error saving question to Firestore:', error);
+            console.error('Error saving group:', error);
             return null;
         }
     }
-    // Fallback to in-memory
-    const existing = inMemoryQuestions.find(q => q.id === question.id);
-    if (existing) {
-        Object.assign(existing, question);
-        return existing;
-    } else {
-        if (!question.id) {
-            question.id = nextId++;
-        }
-        inMemoryQuestions.push(question);
-        return question;
-    }
+    if (!group.id) group.id = nextId++;
+    inMemoryData.groups.push(group);
+    return group;
 }
 
-// حذف سؤال
-async function deleteQuestionFromDb(id) {
+async function deleteGroup(id) {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('questions').where('id', '==', parseInt(id)).get();
-            if (!snapshot.empty) {
-                const docRef = snapshot.docs[0].ref;
-                await docRef.delete();
-                return true;
-            }
-            return false;
+            await db.collection('groups').doc(id).delete();
+            return true;
         } catch (error) {
-            console.error('Error deleting question from Firestore:', error);
+            console.error('Error deleting group:', error);
             return false;
         }
     }
-    // Fallback
-    const index = inMemoryQuestions.findIndex(q => q.id == id);
+    const index = inMemoryData.groups.findIndex(g => g.id == id);
     if (index !== -1) {
-        inMemoryQuestions.splice(index, 1);
+        inMemoryData.groups.splice(index, 1);
         return true;
     }
     return false;
 }
 
-// حفظ نتيجة اختبار
+// === Exams ===
+async function getExams() {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('exams').orderBy('createdAt', 'desc').get();
+            if (!snapshot.empty) {
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }
+        } catch (error) {
+            console.error('Error fetching exams:', error);
+        }
+    }
+    return inMemoryData.exams;
+}
+
+async function saveExam(exam) {
+    if (firestoreAvailable && db) {
+        try {
+            const docRef = await db.collection('exams').add(exam);
+            return { id: docRef.id, ...exam };
+        } catch (error) {
+            console.error('Error saving exam:', error);
+            return null;
+        }
+    }
+    if (!exam.id) exam.id = nextId++;
+    inMemoryData.exams.push(exam);
+    return exam;
+}
+
+async function deleteExam(id) {
+    if (firestoreAvailable && db) {
+        try {
+            await db.collection('exams').doc(id).delete();
+            return true;
+        } catch (error) {
+            console.error('Error deleting exam:', error);
+            return false;
+        }
+    }
+    const index = inMemoryData.exams.findIndex(e => e.id == id);
+    if (index !== -1) {
+        inMemoryData.exams.splice(index, 1);
+        return true;
+    }
+    return false;
+}
+
+async function getExamByGroupSlug(slug) {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('exams')
+                .where('groupSlug', '==', slug)
+                .where('isPublished', '==', true)
+                .limit(1)
+                .get();
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                return { id: doc.id, ...doc.data() };
+            }
+        } catch (error) {
+            console.error('Error fetching exam by slug:', error);
+        }
+    }
+    return inMemoryData.exams.find(e => e.groupSlug === slug && e.isPublished);
+}
+
+// === Questions ===
+async function getQuestionsByExamId(examId) {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('questions')
+                .where('examId', '==', examId)
+                .orderBy('id')
+                .get();
+            if (!snapshot.empty) {
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }
+        } catch (error) {
+            console.error('Error fetching questions:', error);
+        }
+    }
+    return inMemoryData.questions.filter(q => q.examId == examId);
+}
+
+async function saveQuestions(questions) {
+    if (firestoreAvailable && db) {
+        try {
+            const batch = db.batch();
+            questions.forEach(q => {
+                const docRef = db.collection('questions').doc();
+                batch.set(docRef, q);
+            });
+            await batch.commit();
+            return true;
+        } catch (error) {
+            console.error('Error saving questions:', error);
+            return false;
+        }
+    }
+    inMemoryData.questions = inMemoryData.questions.filter(q => q.examId != questions[0]?.examId);
+    questions.forEach(q => {
+        if (!q.id) q.id = nextId++;
+        inMemoryData.questions.push(q);
+    });
+    return true;
+}
+
+async function deleteQuestionsByExamId(examId) {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('questions').where('examId', '==', examId).get();
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            return true;
+        } catch (error) {
+            console.error('Error deleting questions:', error);
+            return false;
+        }
+    }
+    inMemoryData.questions = inMemoryData.questions.filter(q => q.examId != examId);
+    return true;
+}
+
+// === Submissions ===
+async function getSubmissions() {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('submissions')
+                .orderBy('timestamp', 'desc')
+                .get();
+            if (!snapshot.empty) {
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }
+        } catch (error) {
+            console.error('Error fetching submissions:', error);
+        }
+    }
+    return inMemoryData.submissions;
+}
+
 async function saveSubmission(submission) {
     if (firestoreAvailable && db) {
         try {
             const docRef = await db.collection('submissions').add(submission);
             return { id: docRef.id, ...submission };
         } catch (error) {
-            console.error('Error saving submission to Firestore:', error);
+            console.error('Error saving submission:', error);
             return null;
         }
     }
-    inMemorySubmissions.push(submission);
+    if (!submission.id) submission.id = nextId++;
+    inMemoryData.submissions.push(submission);
     return submission;
 }
 
-// جلب كل النتائج
-async function getSubmissions() {
+async function deleteSubmission(id) {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('submissions').orderBy('timestamp', 'desc').get();
-            if (!snapshot.empty) {
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            }
+            await db.collection('submissions').doc(id).delete();
+            return true;
         } catch (error) {
-            console.error('Error fetching submissions from Firestore:', error);
+            console.error('Error deleting submission:', error);
+            return false;
         }
     }
-    return inMemorySubmissions;
+    const index = inMemoryData.submissions.findIndex(s => s.id == id);
+    if (index !== -1) {
+        inMemoryData.submissions.splice(index, 1);
+        return true;
+    }
+    return false;
 }
 
-// ========== MIDDLEWARE: التحقق من JWT ==========
+async function checkStudentAttempt(groupSlug, studentName) {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('submissions')
+                .where('groupSlug', '==', groupSlug)
+                .where('studentName', '==', studentName)
+                .get();
+            return !snapshot.empty;
+        } catch (error) {
+            console.error('Error checking attempt:', error);
+            return false;
+        }
+    }
+    return inMemoryData.submissions.some(s => s.groupSlug === groupSlug && s.studentName === studentName);
+}
+
+// ========== MIDDLEWARE ==========
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -186,10 +310,9 @@ function authenticateToken(req, res, next) {
 
 // ========== ROUTES ==========
 
-// تسجيل الدخول
+// === تسجيل الدخول ===
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
-
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
         const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
         res.json({ success: true, token });
@@ -198,96 +321,147 @@ app.post('/api/login', (req, res) => {
     }
 });
 
-// جلب كل الأسئلة
-app.get('/api/questions', async (req, res) => {
+// === Groups ===
+app.get('/api/groups', authenticateToken, async (req, res) => {
     try {
-        const questions = await getQuestions();
-        res.json(questions);
+        const groups = await getGroups();
+        res.json(groups);
     } catch (error) {
-        console.error('Error in /api/questions:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// إضافة سؤال جديد
-app.post('/api/questions', authenticateToken, async (req, res) => {
+app.post('/api/groups', authenticateToken, async (req, res) => {
     try {
-        const { text, options, correct } = req.body;
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ error: 'Group name required' });
+        
+        const slug = name.toLowerCase().trim().replace(/\s+/g, '-');
+        const group = { name, slug, createdAt: new Date().toISOString() };
+        const saved = await saveGroup(group);
+        res.json(saved);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
-        if (!text || !options || options.length < 2) {
-            return res.status(400).json({ error: 'Invalid question data' });
+app.delete('/api/groups/:id', authenticateToken, async (req, res) => {
+    try {
+        const deleted = await deleteGroup(req.params.id);
+        res.json({ success: deleted });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// === Exams ===
+app.get('/api/exams', authenticateToken, async (req, res) => {
+    try {
+        const exams = await getExams();
+        const groups = await getGroups();
+        const examsWithGroups = exams.map(exam => {
+            const group = groups.find(g => g.id === exam.groupId);
+            return { ...exam, groupName: group?.name || 'Unknown' };
+        });
+        res.json(examsWithGroups);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/exams', authenticateToken, async (req, res) => {
+    try {
+        const { groupId, groupSlug, questions } = req.body;
+        if (!groupId || !questions || questions.length === 0) {
+            return res.status(400).json({ error: 'Group ID and questions required' });
         }
 
-        // جلب الأسئلة الحالية لتحديد الـ id
-        const currentQuestions = await getQuestions();
-        const maxId = currentQuestions.reduce((max, q) => Math.max(max, q.id || 0), 0);
-
-        const newQuestion = {
-            id: maxId + 1,
-            text,
-            options,
-            correct: correct || 0
+        const exam = {
+            groupId,
+            groupSlug,
+            questionsCount: questions.length,
+            isPublished: false,
+            createdAt: new Date().toISOString()
         };
 
-        const saved = await saveQuestionToDb(newQuestion);
-        res.json(saved || newQuestion);
-    } catch (error) {
-        console.error('Add question error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// تعديل سؤال
-app.put('/api/questions/:id', authenticateToken, async (req, res) => {
-    try {
-        const id = parseInt(req.params.id);
-        const { text, options, correct } = req.body;
-
-        const updatedQuestion = {
-            id,
-            text: text,
-            options: options,
-            correct: correct
-        };
-
-        const saved = await saveQuestionToDb(updatedQuestion);
-        if (saved) {
-            res.json(saved);
+        const savedExam = await saveExam(exam);
+        if (savedExam) {
+            // Save questions with exam reference
+            const examQuestions = questions.map((q, idx) => ({
+                ...q,
+                id: idx + 1,
+                examId: savedExam.id
+            }));
+            await saveQuestions(examQuestions);
+            res.json(savedExam);
         } else {
-            res.status(404).json({ error: 'Question not found' });
+            res.status(500).json({ error: 'Failed to save exam' });
         }
     } catch (error) {
-        console.error('Update question error:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// حذف سؤال
-app.delete('/api/questions/:id', authenticateToken, async (req, res) => {
+app.put('/api/exams/:id/publish', authenticateToken, async (req, res) => {
     try {
         const id = req.params.id;
-        const deleted = await deleteQuestionFromDb(id);
-        if (deleted) {
-            res.json({ success: true, message: 'Question deleted' });
+        if (firestoreAvailable && db) {
+            await db.collection('exams').doc(id).update({ isPublished: true });
         } else {
-            res.status(404).json({ error: 'Question not found' });
+            const exam = inMemoryData.exams.find(e => e.id == id);
+            if (exam) exam.isPublished = true;
         }
+        res.json({ success: true });
     } catch (error) {
-        console.error('Delete question error:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// إرسال الإجابات
-app.post('/api/submit-answers', async (req, res) => {
+app.delete('/api/exams/:id', authenticateToken, async (req, res) => {
     try {
-        const { userName, answers } = req.body;
+        await deleteQuestionsByExamId(req.params.id);
+        await deleteExam(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
-        if (!userName || !answers) {
-            return res.status(400).json({ error: 'Missing userName or answers' });
+// === Student Exam ===
+app.get('/api/exam/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const exam = await getExamByGroupSlug(slug);
+        if (!exam) {
+            return res.status(404).json({ error: 'Exam not found or not published' });
+        }
+        const questions = await getQuestionsByExamId(exam.id);
+        res.json({ exam, questions });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/submit-exam', async (req, res) => {
+    try {
+        const { groupSlug, studentName, answers } = req.body;
+        
+        if (!groupSlug || !studentName || !answers) {
+            return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const questions = await getQuestions();
+        // Check if student already attempted
+        const hasAttempted = await checkStudentAttempt(groupSlug, studentName);
+        if (hasAttempted) {
+            return res.status(409).json({ error: 'You have already taken this exam' });
+        }
+
+        const exam = await getExamByGroupSlug(groupSlug);
+        if (!exam) {
+            return res.status(404).json({ error: 'Exam not found' });
+        }
+
+        const questions = await getQuestionsByExamId(exam.id);
         let correctCount = 0;
         const results = [];
 
@@ -297,6 +471,8 @@ app.post('/api/submit-answers', async (req, res) => {
             if (isCorrect) correctCount++;
             results.push({
                 questionId: q.id,
+                questionText: q.text,
+                options: q.options,
                 userAnswer,
                 correctAnswer: q.correct,
                 isCorrect
@@ -304,7 +480,9 @@ app.post('/api/submit-answers', async (req, res) => {
         });
 
         const submission = {
-            userName,
+            groupSlug,
+            groupId: exam.groupId,
+            studentName,
             timestamp: new Date().toISOString(),
             total: questions.length,
             correct: correctCount,
@@ -312,21 +490,28 @@ app.post('/api/submit-answers', async (req, res) => {
             results
         };
 
-        await saveSubmission(submission);
-        res.json(submission);
+        const saved = await saveSubmission(submission);
+        res.json({ success: true, submission: saved });
     } catch (error) {
-        console.error('Submit answers error:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// جلب النتائج (للداشبورد)
+// === Submissions (Admin) ===
 app.get('/api/submissions', authenticateToken, async (req, res) => {
     try {
         const submissions = await getSubmissions();
         res.json(submissions);
     } catch (error) {
-        console.error('Get submissions error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/submissions/:id', authenticateToken, async (req, res) => {
+    try {
+        const deleted = await deleteSubmission(req.params.id);
+        res.json({ success: deleted });
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
@@ -334,5 +519,4 @@ app.get('/api/submissions', authenticateToken, async (req, res) => {
 // ========== تشغيل السيرفر ==========
 app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
-    console.log(`📁 Firebase: ${firestoreAvailable ? '✅ Connected' : '❌ Not connected (using in-memory)'}`);
 });
