@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - Quiz Mr. Medhat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #f0f4f8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 {
+            font-size: 22px;
+            color: #1a2a3a;
+        }
+        .header h1 span {
+            color: #1d6f9c;
+        }
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .header .user-info span {
+            color: #4a5a6a;
+            font-weight: 500;
+        }
+        .btn-logout {
+            padding: 8px 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .btn-logout:hover {
+            background: #c0392b;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 10px 25px;
+            background: white;
+            border: 2px solid #dce4ec;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #4a5a6a;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: #1a3a5c;
+            color: white;
+            border-color: #1a3a5c;
+        }
+        .tab-btn:hover:not(.active) {
+            background: #e8edf3;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a2a3a;
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        table th {
+            text-align: left;
+            padding: 12px 10px;
+            background: #f7f9fc;
+            color: #2c3e50;
+            border-bottom: 2px solid #dce4ec;
+        }
+        table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e8edf3;
+            vertical-align: middle;
+        }
+        table tr:hover {
+            background: #fafbfc;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-correct { background: #d4edda; color: #155724; }
+        .badge-wrong { background: #f8d7da; color: #721c24; }
+        .badge-unanswered { background: #fff3cd; color: #856404; }
+        .btn-sm {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+        .btn-sm:hover { opacity: 0.8; }
+        .btn-edit { background: #f39c12; color: white; }
+        .btn-delete { background: #e74c3c; color: white; }
+        .btn-add {
+            background: #27ae60;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-add:hover { background: #1e8449; }
+        .btn-save {
+            background: #2c6f9c;
+            color: white;
+            padding: 6px 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-save:hover { background: #1a4a6e; }
+        .btn-cancel {
+            background: #95a5a6;
+            color: white;
+            padding: 6px 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .form-inline {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .form-inline input, .form-inline select {
+            padding: 6px 12px;
+            border: 2px solid #dce4ec;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-inline input:focus, .form-inline select:focus {
+            outline: none;
+            border-color: #2c6f9c;
+        }
+        .editing-row input, .editing-row select {
+            padding: 4px 8px;
+            border: 2px solid #f39c12;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .editing-row input:focus, .editing-row select:focus {
+            outline: none;
+            border-color: #e67e22;
+        }
+        .question-text-cell {
+            max-width: 300px;
+            word-break: break-word;
+        }
+        .empty-state {
+            text-align: center;
+            color: #7f8c8d;
+            padding: 30px 0;
+        }
+        .submissions-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .submission-item {
+            border: 1px solid #e8edf3;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+        .submission-item .info {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .submission-item .info .name {
+            font-weight: 600;
+            color: #1a2a3a;
+        }
+        .submission-item .info .score {
+            font-weight: 600;
+            color: #2c6f9c;
+        }
+        .submission-item .details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .submission-item .details .q-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #f0f4f8;
+        }
+        .submission-item .details .q-badge.correct {
+            background: #d4edda;
+            color: #155724;
+        }
+        .submission-item .details .q-badge.wrong {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .submission-item .details .q-badge.unanswered {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .options-input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0;
+        }
+        .options-input-group input {
+            padding: 6px 12px;
+            border: 2px solid #dce4ec;
+            border-radius: 4px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 150px;
+        }
+        .options-input-group input:focus {
+            outline: none;
+            border-color: #2c6f9c;
+        }
+        .option-count-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .option-count-selector select {
+            padding: 6px 12px;
+            border: 2px solid #dce4ec;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+            .header .user-info {
+                justify-content: center;
+            }
+            .tabs {
+                justify-content: center;
+            }
+            table {
+                font-size: 12px;
+            }
+            table th, table td {
+                padding: 8px 6px;
+            }
+            .question-text-cell {
+                max-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container" id="app">
+        <div class="header">
+            <h1>Quiz <span>Mr. Medhat</span> - لوحة التحكم</h1>
+            <div class="user-info">
+                <span id="userDisplay">مرحباً،</span>
+                <button class="btn-logout" onclick="logout()">خروج</button>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="submissions">نتائج الطلاب</button>
+            <button class="tab-btn" data-tab="questions">إدارة الأسئلة</button>
+        </div>
+
+        <div id="submissionsTab" class="tab-content active">
+            <div class="card">
+                <div class="card-title">نتائج الاختبارات</div>
+                <div id="submissionsContainer">
+                    <div class="empty-state">جاري تحميل النتائج...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="questionsTab" class="tab-content">
+            <div class="card">
+                <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <span>الأسئلة</span>
+                    <button class="btn-add" onclick="showAddQuestion()">+ إضافة سؤال جديد</button>
+                </div>
+                <div id="questionsContainer">
+                    <div class="empty-state">جاري تحميل الأسئلة...</div>
+                </div>
+            </div>
+            <div id="addQuestionForm" style="display: none;" class="card">
+                <div class="card-title">إضافة سؤال جديد</div>
+                <form id="newQuestionForm" onsubmit="addQuestion(event)">
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 4px;">نص السؤال</label>
+                        <input type="text" id="newQuestionText" required style="width: 100%; padding: 8px 12px; border: 2px solid #dce4ec; border-radius: 4px;">
+                    </div>
+                    <div class="option-count-selector">
+                        <label style="font-weight: 600;">عدد الاختيارات:</label>
+                        <select id="newOptionCount" onchange="updateNewOptions()">
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4" selected>4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                        </select>
+                    </div>
+                    <div id="newOptionsContainer" style="margin-bottom: 12px;"></div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 4px;">رقم الإجابة الصحيحة</label>
+                        <select id="newCorrectAnswer">
+                            <option value="0">A</option>
+                            <option value="1">B</option>
+                            <option value="2">C</option>
+                            <option value="3">D</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn-add">حفظ السؤال</button>
+                        <button type="button" class="btn-cancel" onclick="hideAddQuestion()">إلغاء</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let token = localStorage.getItem('token');
+        let username = localStorage.getItem('username') || 'مستخدم';
+        let questions = [];
+        let editingId = null;
+
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        document.getElementById('userDisplay').textContent = `مرحباً، ${username}`;
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                document.getElementById(this.dataset.tab + 'Tab').classList.add('active');
+                if (this.dataset.tab === 'questions') loadQuestions();
+                if (this.dataset.tab === 'submissions') loadSubmissions();
+            });
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            window.location.href = '/login';
+        }
+
+        async function loadSubmissions() {
+            const container = document.getElementById('submissionsContainer');
+            try {
+                const response = await fetch(`${API_URL}/api/submissions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 403 || response.status === 401) {
+                    logout();
+                    return;
+                }
+                const data = await response.json();
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="empty-state">لا توجد نتائج مسجلة حتى الآن.</div>';
+                    return;
+                }
+                let html = '<div class="submissions-list">';
+                data.forEach(sub => {
+                    html += `
+                        <div class="submission-item">
+                            <div class="info">
+                                <span class="name">${sub.userName || 'مجهول'}</span>
+                                <span class="score">${sub.correct || 0} / ${sub.total || 0} (${sub.score || 0}%)</span>
+                                <span style="font-size: 13px; color: #7f8c8d;">${new Date(sub.timestamp).toLocaleString('ar-EG')}</span>
+                            </div>
+                            <div class="details">
+                                ${sub.results ? sub.results.map((r, i) => {
+                                    let cls = r.isCorrect ? 'correct' : (r.userAnswer !== undefined ? 'wrong' : 'unanswered');
+                                    let label = r.isCorrect ? '✓' : (r.userAnswer !== undefined ? '✗' : '—');
+                                    return `<span class="q-badge ${cls}">${i+1}: ${label}</span>`;
+                                }).join('') : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<div class="empty-state">حدث خطأ في تحميل النتائج.</div>';
+                console.error(error);
+            }
+        }
+
+        async function loadQuestions() {
+            const container = document.getElementById('questionsContainer');
+            try {
+                const response = await fetch(`${API_URL}/api/questions`);
+                questions = await response.json();
+                if (questions.length === 0) {
+                    container.innerHTML = '<div class="empty-state">لا توجد أسئلة. أضف سؤالاً جديداً.</div>';
+                    return;
+                }
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>السؤال</th>
+                                <th style="width: 100px;">الاختيارات</th>
+                                <th style="width: 100px;">الإجابة الصحيحة</th>
+                                <th style="width: 150px;">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                questions.forEach((q, idx) => {
+                    const isEditing = editingId === q.id;
+                    const correctLetter = String.fromCharCode(65 + q.correct);
+                    html += `<tr ${isEditing ? 'class="editing-row"' : ''}>`;
+                    html += `<td>${idx + 1}</td>`;
+                    if (isEditing) {
+                        html += `
+                            <td><input type="text" id="editText_${q.id}" value="${q.text.replace(/"/g, '&quot;')}" style="width: 100%;"></td>
+                            <td>
+                                <select id="editOptionCount_${q.id}" onchange="updateEditOptions('${q.id}')">
+                                    ${[2,3,4,5,6].map(n => `<option value="${n}" ${n === q.options.length ? 'selected' : ''}>${n}</option>`).join('')}
+                                </select>
+                                <div id="editOptionsContainer_${q.id}" style="margin-top:4px;">
+                                    ${q.options.map((opt, oi) => `<input type="text" value="${opt.replace(/"/g, '&quot;')}" style="display:block;width:100%;margin:2px 0;padding:2px 6px;border:1px solid #dce4ec;border-radius:4px;" data-optindex="${oi}">`).join('')}
+                                </div>
+                            </td>
+                            <td>
+                                <select id="editCorrect_${q.id}">
+                                    ${q.options.map((opt, oi) => `<option value="${oi}" ${oi === q.correct ? 'selected' : ''}>${String.fromCharCode(65 + oi)}</option>`).join('')}
+                                </select>
+                            </td>
+                            <td>
+                                <button class="btn-sm btn-save" onclick="saveEdit('${q.id}')">حفظ</button>
+                                <button class="btn-sm btn-cancel" onclick="cancelEdit()">إلغاء</button>
+                            </td>
+                        `;
+                    } else {
+                        html += `
+                            <td class="question-text-cell">${q.text}</td>
+                            <td>${q.options.length}</td>
+                            <td>${correctLetter}</td>
+                            <td>
+                                <button class="btn-sm btn-edit" onclick="startEdit('${q.id}')">تعديل</button>
+                                <button class="btn-sm btn-delete" onclick="deleteQuestion('${q.id}')">حذف</button>
+                            </td>
+                        `;
+                    }
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<div class="empty-state">حدث خطأ في تحميل الأسئلة.</div>';
+                console.error(error);
+            }
+        }
+
+        function updateNewOptions() {
+            const count = parseInt(document.getElementById('newOptionCount').value);
+            const container = document.getElementById('newOptionsContainer');
+            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div style="display:flex;align-items:center;gap:8px;margin:4px 0;">
+                        <span style="font-weight:600;width:24px;">${letters[i]}:</span>
+                        <input type="text" id="newOption_${i}" placeholder="اختيار ${letters[i]}" style="flex:1;padding:6px 12px;border:2px solid #dce4ec;border-radius:4px;">
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+            
+            const correctSelect = document.getElementById('newCorrectAnswer');
+            correctSelect.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                correctSelect.innerHTML += `<option value="${i}">${letters[i]}</option>`;
+            }
+        }
+
+        function updateEditOptions(id) {
+            const count = parseInt(document.getElementById(`editOptionCount_${id}`).value);
+            const container = document.getElementById(`editOptionsContainer_${id}`);
+            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                const existing = document.querySelectorAll(`#editOptionsContainer_${id} input`);
+                const val = existing[i] ? existing[i].value : '';
+                html += `<input type="text" value="${val}" style="display:block;width:100%;margin:2px 0;padding:2px 6px;border:1px solid #dce4ec;border-radius:4px;" data-optindex="${i}">`;
+            }
+            container.innerHTML = html;
+            
+            const correctSelect = document.getElementById(`editCorrect_${id}`);
+            correctSelect.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                correctSelect.innerHTML += `<option value="${i}">${letters[i]}</option>`;
+            }
+        }
+
+        function showAddQuestion() {
+            document.getElementById('addQuestionForm').style.display = 'block';
+            updateNewOptions();
+        }
+
+        function hideAddQuestion() {
+            document.getElementById('addQuestionForm').style.display = 'none';
+            document.getElementById('newQuestionForm').reset();
+        }
+
+        async function addQuestion(e) {
+            e.preventDefault();
+            const text = document.getElementById('newQuestionText').value.trim();
+            const count = parseInt(document.getElementById('newOptionCount').value);
+            const options = [];
+            for (let i = 0; i < count; i++) {
+                const val = document.getElementById(`newOption_${i}`).value.trim();
+                if (!val) {
+                    alert(`الرجاء إدخال نص الاختيار ${String.fromCharCode(65 + i)}`);
+                    return;
+                }
+                options.push(val);
+            }
+            const correct = parseInt(document.getElementById('newCorrectAnswer').value);
+
+            if (!text) {
+                alert('الرجاء إدخال نص السؤال.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/questions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ text, options, correct })
+                });
+                if (response.status === 403 || response.status === 401) {
+                    logout();
+                    return;
+                }
+                hideAddQuestion();
+                await loadQuestions();
+            } catch (error) {
+                alert('حدث خطأ في إضافة السؤال.');
+                console.error(error);
+            }
+        }
+
+        function startEdit(id) {
+            editingId = id;
+            loadQuestions();
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            loadQuestions();
+        }
+
+        async function saveEdit(id) {
+            const textInput = document.getElementById(`editText_${id}`);
+            const correctSelect = document.getElementById(`editCorrect_${id}`);
+            const optionInputs = document.querySelectorAll(`#editOptionsContainer_${id} input`);
+            
+            if (!textInput || !correctSelect) return;
+            
+            const newText = textInput.value.trim();
+            const newCorrect = parseInt(correctSelect.value);
+            const options = [];
+            optionInputs.forEach(input => {
+                if (input.value.trim()) {
+                    options.push(input.value.trim());
+                }
+            });
+            
+            if (!newText) {
+                alert('الرجاء إدخال نص السؤال.');
+                return;
+            }
+            if (options.length < 2) {
+                alert('الرجاء إدخال خيارين على الأقل.');
+                return;
+            }
+            if (newCorrect >= options.length) {
+                alert('الإجابة الصحيحة غير صالحة.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/questions/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ text: newText, options, correct: newCorrect })
+                });
+                if (response.status === 403 || response.status === 401) {
+                    logout();
+                    return;
+                }
+                editingId = null;
+                await loadQuestions();
+            } catch (error) {
+                alert('حدث خطأ في حفظ التعديل.');
+                console.error(error);
+            }
+        }
+
+        async function deleteQuestion(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
+            try {
+                const response = await fetch(`${API_URL}/api/questions/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 403 || response.status === 401) {
+                    logout();
+                    return;
+                }
+                await loadQuestions();
+            } catch (error) {
+                alert('حدث خطأ في حذف السؤال.');
+                console.error(error);
+            }
+        }
+
+        loadSubmissions();
+        loadQuestions();
+
+        updateNewOptions();
+    </script>
+</body>
+</html>
