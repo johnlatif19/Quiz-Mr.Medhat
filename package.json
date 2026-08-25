@@ -1,7 +1,7 @@
 {
-  "name": "grammar-quiz-admin",
+  "name": "quiz-mr-medhat",
   "version": "1.0.0",
-  "description": "Grammar Quiz with Admin Dashboard",
+  "description": "Quiz Mr. Medhat - Grammar Quiz System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,9 +12,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3",
-    "firebase-admin": "^11.10.1",
-    "body-parser": "^1.20.2"
+    "body-parser": "^1.20.2",
+    "firebase-admin": "^11.10.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
