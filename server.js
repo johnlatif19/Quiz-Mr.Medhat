@@ -2,8 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const admin = require('firebase-admin');
+const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
@@ -15,238 +14,261 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Firebase Admin SDK
-if (process.env.FIREBASE_CONFIG) {
-  const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
-  admin.initializeApp({
-    credential: admin.credential.cert(firebaseConfig),
-    databaseURL: `https://${firebaseConfig.project_id}.firebaseio.com`
-  });
-} else {
-  console.warn('No Firebase config found. Using in-memory storage.');
-}
-
-const db = admin.firestore ? admin.firestore() : null;
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+// JWT Secret
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_123456789';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// In-memory fallback storage
-let inMemoryQuestions = [
-  {
-    id: 1,
-    text: '"The disabled need care" - "The disabled" functions as:',
-    options: ['Singular noun', 'Plural noun', 'Adjective only', 'Adverb'],
-    correct: 1
-  },
-  {
-    id: 2,
-    text: '"It isn\'t my car, Mine is red" - The underlined words are:',
-    options: ['Subject pronoun + Object pronoun', 'Possessive adjective + Possessive pronoun', 'Object pronoun + Subject pronoun', 'Two nouns'],
-    correct: 1
-  }
-];
-let inMemoryAnswers = [];
-let questionCounter = 3;
+// ========== FILE-BASED STORAGE (بديل Firebase) ==========
+const DATA_DIR = path.join(__dirname, 'data');
+const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
+const SUBMISSIONS_FILE = path.join(DATA_DIR, 'submissions.json');
 
-// Helper: Get questions from Firestore or memory
-async function getQuestions() {
-  if (db) {
-    const snapshot = await db.collection('questions').orderBy('id').get();
-    if (!snapshot.empty) {
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    }
-  }
-  return inMemoryQuestions;
+// تأكد من وجود مجلد data
+if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-async function saveQuestion(question) {
-  if (db) {
-    const docRef = await db.collection('questions').add(question);
-    return { id: docRef.id, ...question };
-  } else {
-    if (!question.id) {
-      question.id = questionCounter++;
+// قراءة الأسئلة من الملف
+function loadQuestions() {
+    try {
+        if (fs.existsSync(QUESTIONS_FILE)) {
+            const data = fs.readFileSync(QUESTIONS_FILE, 'utf8');
+            const parsed = JSON.parse(data);
+            return parsed;
+        }
+    } catch (error) {
+        console.error('Error loading questions:', error);
     }
-    inMemoryQuestions.push(question);
-    return question;
-  }
+    // بيانات افتراضية
+    return [
+        {
+            id: 1,
+            text: '"The disabled need care" - "The disabled" functions as:',
+            options: ['Singular noun', 'Plural noun', 'Adjective only', 'Adverb'],
+            correct: 1
+        },
+        {
+            id: 2,
+            text: '"It isn\'t my car, Mine is red" - The underlined words are:',
+            options: ['Subject pronoun + Object pronoun', 'Possessive adjective + Possessive pronoun', 'Object pronoun + Subject pronoun', 'Two nouns'],
+            correct: 1
+        }
+    ];
 }
 
-async function updateQuestion(id, data) {
-  if (db) {
-    await db.collection('questions').doc(id).update(data);
-    return { id, ...data };
-  } else {
-    const index = inMemoryQuestions.findIndex(q => q.id == id);
-    if (index !== -1) {
-      inMemoryQuestions[index] = { ...inMemoryQuestions[index], ...data };
-      return inMemoryQuestions[index];
+// حفظ الأسئلة في الملف
+function saveQuestions(questions) {
+    try {
+        fs.writeFileSync(QUESTIONS_FILE, JSON.stringify(questions, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving questions:', error);
+        return false;
     }
-    return null;
-  }
 }
 
-async function deleteQuestion(id) {
-  if (db) {
-    await db.collection('questions').doc(id).delete();
-    return true;
-  } else {
-    const index = inMemoryQuestions.findIndex(q => q.id == id);
-    if (index !== -1) {
-      inMemoryQuestions.splice(index, 1);
-      return true;
+// قراءة النتائج من الملف
+function loadSubmissions() {
+    try {
+        if (fs.existsSync(SUBMISSIONS_FILE)) {
+            const data = fs.readFileSync(SUBMISSIONS_FILE, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Error loading submissions:', error);
     }
-    return false;
-  }
+    return [];
 }
 
-// Middleware: Verify JWT
+// حفظ النتائج في الملف
+function saveSubmissions(submissions) {
+    try {
+        fs.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving submissions:', error);
+        return false;
+    }
+}
+
+// متغيرات للذاكرة
+let questions = loadQuestions();
+let submissions = loadSubmissions();
+let nextId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
+
+// ========== MIDDLEWARE: التحقق من JWT ==========
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'Access denied. No token provided.' });
-  }
-  
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(403).json({ error: 'Invalid token.' });
-  }
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Access denied. No token provided.' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(403).json({ error: 'Invalid or expired token.' });
+    }
 }
 
-// Routes
+// ========== ROUTES ==========
+
+// تسجيل الدخول
 app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  
-  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-    const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ success: true, token });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
-  }
+    const { username, password } = req.body;
+
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ success: true, token });
+    } else {
+        res.status(401).json({ error: 'Invalid credentials' });
+    }
 });
 
-app.get('/api/questions', async (req, res) => {
-  try {
-    const questions = await getQuestions();
+// جلب كل الأسئلة
+app.get('/api/questions', (req, res) => {
+    // إعادة تحميل الأسئلة من الملف للتأكد من التحديث
+    questions = loadQuestions();
     res.json(questions);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-app.post('/api/questions', authenticateToken, async (req, res) => {
-  try {
-    const question = req.body;
-    const saved = await saveQuestion(question);
-    res.json(saved);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// إضافة سؤال جديد
+app.post('/api/questions', authenticateToken, (req, res) => {
+    try {
+        const { text, options, correct } = req.body;
 
-app.put('/api/questions/:id', authenticateToken, async (req, res) => {
-  try {
-    const id = req.params.id;
-    const data = req.body;
-    const updated = await updateQuestion(id, data);
-    if (updated) {
-      res.json(updated);
-    } else {
-      res.status(404).json({ error: 'Question not found' });
+        if (!text || !options || options.length < 2) {
+            return res.status(400).json({ error: 'Invalid question data' });
+        }
+
+        const newQuestion = {
+            id: nextId++,
+            text,
+            options,
+            correct: correct || 0
+        };
+
+        questions.push(newQuestion);
+        saveQuestions(questions);
+
+        res.json(newQuestion);
+    } catch (error) {
+        console.error('Add question error:', error);
+        res.status(500).json({ error: error.message });
     }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-app.delete('/api/questions/:id', authenticateToken, async (req, res) => {
-  try {
-    const id = req.params.id;
-    const deleted = await deleteQuestion(id);
-    if (deleted) {
-      res.json({ success: true });
-    } else {
-      res.status(404).json({ error: 'Question not found' });
+// تعديل سؤال
+app.put('/api/questions/:id', authenticateToken, (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { text, options, correct } = req.body;
+
+        const index = questions.findIndex(q => q.id === id);
+        if (index === -1) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+
+        questions[index] = {
+            ...questions[index],
+            text: text || questions[index].text,
+            options: options || questions[index].options,
+            correct: correct !== undefined ? correct : questions[index].correct
+        };
+
+        saveQuestions(questions);
+        res.json(questions[index]);
+    } catch (error) {
+        console.error('Update question error:', error);
+        res.status(500).json({ error: error.message });
     }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-app.post('/api/submit-answers', authenticateToken, async (req, res) => {
-  try {
-    const { userName, answers } = req.body;
-    const questions = await getQuestions();
-    let correctCount = 0;
-    const result = [];
-    
-    questions.forEach((q, idx) => {
-      const userAnswer = answers[idx] !== undefined ? answers[idx] : null;
-      const isCorrect = userAnswer === q.correct;
-      if (isCorrect) correctCount++;
-      result.push({
-        questionId: q.id,
-        userAnswer,
-        correctAnswer: q.correct,
-        isCorrect
-      });
-    });
-    
-    const submission = {
-      userName,
-      timestamp: new Date().toISOString(),
-      total: questions.length,
-      correct: correctCount,
-      score: Math.round((correctCount / questions.length) * 100),
-      results: result
-    };
-    
-    if (db) {
-      await db.collection('submissions').add(submission);
-    } else {
-      inMemoryAnswers.push(submission);
+// حذف سؤال
+app.delete('/api/questions/:id', authenticateToken, (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const index = questions.findIndex(q => q.id === id);
+
+        if (index === -1) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+
+        questions.splice(index, 1);
+        saveQuestions(questions);
+
+        res.json({ success: true, message: 'Question deleted' });
+    } catch (error) {
+        console.error('Delete question error:', error);
+        res.status(500).json({ error: error.message });
     }
-    
-    res.json(submission);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-app.get('/api/submissions', authenticateToken, async (req, res) => {
-  try {
-    let submissions = [];
-    if (db) {
-      const snapshot = await db.collection('submissions').orderBy('timestamp', 'desc').get();
-      submissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    } else {
-      submissions = inMemoryAnswers;
+// إرسال الإجابات
+app.post('/api/submit-answers', (req, res) => {
+    try {
+        const { userName, answers } = req.body;
+
+        if (!userName || !answers) {
+            return res.status(400).json({ error: 'Missing userName or answers' });
+        }
+
+        // تحميل الأسئلة الحالية
+        questions = loadQuestions();
+
+        let correctCount = 0;
+        const results = [];
+
+        questions.forEach((q, idx) => {
+            const userAnswer = answers[idx] !== undefined ? answers[idx] : null;
+            const isCorrect = userAnswer === q.correct;
+            if (isCorrect) correctCount++;
+            results.push({
+                questionId: q.id,
+                userAnswer,
+                correctAnswer: q.correct,
+                isCorrect
+            });
+        });
+
+        const submission = {
+            userName,
+            timestamp: new Date().toISOString(),
+            total: questions.length,
+            correct: correctCount,
+            score: Math.round((correctCount / questions.length) * 100),
+            results
+        };
+
+        submissions.push(submission);
+        saveSubmissions(submissions);
+
+        res.json(submission);
+    } catch (error) {
+        console.error('Submit answers error:', error);
+        res.status(500).json({ error: error.message });
     }
-    res.json(submissions);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
-// Serve static files
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// جلب النتائج (للداشبورد)
+app.get('/api/submissions', authenticateToken, (req, res) => {
+    try {
+        submissions = loadSubmissions();
+        res.json(submissions);
+    } catch (error) {
+        console.error('Get submissions error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
+// ========== تشغيل السيرفر ==========
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.log(`📁 Data directory: ${DATA_DIR}`);
+    console.log(`📝 Questions file: ${QUESTIONS_FILE}`);
+    console.log(`📊 Submissions file: ${SUBMISSIONS_FILE}`);
 });
