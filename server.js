@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
-const fs = require('fs');
+const admin = require('firebase-admin');
 const path = require('path');
 require('dotenv').config();
 
@@ -19,83 +19,152 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_123456789';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// ========== FILE-BASED STORAGE (بديل Firebase) ==========
-const DATA_DIR = path.join(__dirname, 'data');
-const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
-const SUBMISSIONS_FILE = path.join(DATA_DIR, 'submissions.json');
+// ========== تهيئة Firebase ==========
+let db = null;
+let firestoreAvailable = false;
 
-// تأكد من وجود مجلد data
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// قراءة الأسئلة من الملف
-function loadQuestions() {
-    try {
-        if (fs.existsSync(QUESTIONS_FILE)) {
-            const data = fs.readFileSync(QUESTIONS_FILE, 'utf8');
-            const parsed = JSON.parse(data);
-            return parsed;
-        }
-    } catch (error) {
-        console.error('Error loading questions:', error);
+try {
+    if (process.env.FIREBASE_CONFIG) {
+        const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
+        admin.initializeApp({
+            credential: admin.credential.cert(firebaseConfig),
+            databaseURL: `https://${firebaseConfig.project_id}.firebaseio.com`
+        });
+        db = admin.firestore();
+        firestoreAvailable = true;
+        console.log('🔥 Firebase initialized successfully');
+    } else {
+        console.warn('⚠️ FIREBASE_CONFIG not found. Using in-memory storage (not recommended for production)');
     }
-    // بيانات افتراضية
-    return [
-        {
-            id: 1,
-            text: '"The disabled need care" - "The disabled" functions as:',
-            options: ['Singular noun', 'Plural noun', 'Adjective only', 'Adverb'],
-            correct: 1
-        },
-        {
-            id: 2,
-            text: '"It isn\'t my car, Mine is red" - The underlined words are:',
-            options: ['Subject pronoun + Object pronoun', 'Possessive adjective + Possessive pronoun', 'Object pronoun + Subject pronoun', 'Two nouns'],
-            correct: 1
-        }
-    ];
+} catch (error) {
+    console.error('❌ Firebase initialization error:', error.message);
+    console.warn('⚠️ Falling back to in-memory storage');
 }
 
-// حفظ الأسئلة في الملف
-function saveQuestions(questions) {
-    try {
-        fs.writeFileSync(QUESTIONS_FILE, JSON.stringify(questions, null, 2));
+// ========== IN-MEMORY FALLBACK (في حالة عدم وجود Firebase) ==========
+let inMemoryQuestions = [
+    {
+        id: 1,
+        text: '"The disabled need care" - "The disabled" functions as:',
+        options: ['Singular noun', 'Plural noun', 'Adjective only', 'Adverb'],
+        correct: 1
+    },
+    {
+        id: 2,
+        text: '"It isn\'t my car, Mine is red" - The underlined words are:',
+        options: ['Subject pronoun + Object pronoun', 'Possessive adjective + Possessive pronoun', 'Object pronoun + Subject pronoun', 'Two nouns'],
+        correct: 1
+    }
+];
+let inMemorySubmissions = [];
+let nextId = 3;
+
+// ========== FUNCTIONS ==========
+
+// جلب كل الأسئلة
+async function getQuestions() {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('questions').orderBy('id').get();
+            if (!snapshot.empty) {
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }
+        } catch (error) {
+            console.error('Error fetching questions from Firestore:', error);
+        }
+    }
+    return inMemoryQuestions;
+}
+
+// حفظ أو تحديث سؤال
+async function saveQuestionToDb(question) {
+    if (firestoreAvailable && db) {
+        try {
+            // نبحث عن السؤال في Firestore
+            const snapshot = await db.collection('questions').where('id', '==', question.id).get();
+            if (!snapshot.empty) {
+                // تحديث
+                const docRef = snapshot.docs[0].ref;
+                await docRef.update(question);
+                return question;
+            } else {
+                // إضافة جديد
+                const docRef = await db.collection('questions').add(question);
+                return { id: docRef.id, ...question };
+            }
+        } catch (error) {
+            console.error('Error saving question to Firestore:', error);
+            return null;
+        }
+    }
+    // Fallback to in-memory
+    const existing = inMemoryQuestions.find(q => q.id === question.id);
+    if (existing) {
+        Object.assign(existing, question);
+        return existing;
+    } else {
+        if (!question.id) {
+            question.id = nextId++;
+        }
+        inMemoryQuestions.push(question);
+        return question;
+    }
+}
+
+// حذف سؤال
+async function deleteQuestionFromDb(id) {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('questions').where('id', '==', parseInt(id)).get();
+            if (!snapshot.empty) {
+                const docRef = snapshot.docs[0].ref;
+                await docRef.delete();
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error deleting question from Firestore:', error);
+            return false;
+        }
+    }
+    // Fallback
+    const index = inMemoryQuestions.findIndex(q => q.id == id);
+    if (index !== -1) {
+        inMemoryQuestions.splice(index, 1);
         return true;
-    } catch (error) {
-        console.error('Error saving questions:', error);
-        return false;
     }
+    return false;
 }
 
-// قراءة النتائج من الملف
-function loadSubmissions() {
-    try {
-        if (fs.existsSync(SUBMISSIONS_FILE)) {
-            const data = fs.readFileSync(SUBMISSIONS_FILE, 'utf8');
-            return JSON.parse(data);
+// حفظ نتيجة اختبار
+async function saveSubmission(submission) {
+    if (firestoreAvailable && db) {
+        try {
+            const docRef = await db.collection('submissions').add(submission);
+            return { id: docRef.id, ...submission };
+        } catch (error) {
+            console.error('Error saving submission to Firestore:', error);
+            return null;
         }
-    } catch (error) {
-        console.error('Error loading submissions:', error);
     }
-    return [];
+    inMemorySubmissions.push(submission);
+    return submission;
 }
 
-// حفظ النتائج في الملف
-function saveSubmissions(submissions) {
-    try {
-        fs.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissions, null, 2));
-        return true;
-    } catch (error) {
-        console.error('Error saving submissions:', error);
-        return false;
+// جلب كل النتائج
+async function getSubmissions() {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('submissions').orderBy('timestamp', 'desc').get();
+            if (!snapshot.empty) {
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }
+        } catch (error) {
+            console.error('Error fetching submissions from Firestore:', error);
+        }
     }
+    return inMemorySubmissions;
 }
-
-// متغيرات للذاكرة
-let questions = loadQuestions();
-let submissions = loadSubmissions();
-let nextId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
 
 // ========== MIDDLEWARE: التحقق من JWT ==========
 function authenticateToken(req, res, next) {
@@ -130,14 +199,18 @@ app.post('/api/login', (req, res) => {
 });
 
 // جلب كل الأسئلة
-app.get('/api/questions', (req, res) => {
-    // إعادة تحميل الأسئلة من الملف للتأكد من التحديث
-    questions = loadQuestions();
-    res.json(questions);
+app.get('/api/questions', async (req, res) => {
+    try {
+        const questions = await getQuestions();
+        res.json(questions);
+    } catch (error) {
+        console.error('Error in /api/questions:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // إضافة سؤال جديد
-app.post('/api/questions', authenticateToken, (req, res) => {
+app.post('/api/questions', authenticateToken, async (req, res) => {
     try {
         const { text, options, correct } = req.body;
 
@@ -145,17 +218,19 @@ app.post('/api/questions', authenticateToken, (req, res) => {
             return res.status(400).json({ error: 'Invalid question data' });
         }
 
+        // جلب الأسئلة الحالية لتحديد الـ id
+        const currentQuestions = await getQuestions();
+        const maxId = currentQuestions.reduce((max, q) => Math.max(max, q.id || 0), 0);
+
         const newQuestion = {
-            id: nextId++,
+            id: maxId + 1,
             text,
             options,
             correct: correct || 0
         };
 
-        questions.push(newQuestion);
-        saveQuestions(questions);
-
-        res.json(newQuestion);
+        const saved = await saveQuestionToDb(newQuestion);
+        res.json(saved || newQuestion);
     } catch (error) {
         console.error('Add question error:', error);
         res.status(500).json({ error: error.message });
@@ -163,25 +238,24 @@ app.post('/api/questions', authenticateToken, (req, res) => {
 });
 
 // تعديل سؤال
-app.put('/api/questions/:id', authenticateToken, (req, res) => {
+app.put('/api/questions/:id', authenticateToken, async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         const { text, options, correct } = req.body;
 
-        const index = questions.findIndex(q => q.id === id);
-        if (index === -1) {
-            return res.status(404).json({ error: 'Question not found' });
-        }
-
-        questions[index] = {
-            ...questions[index],
-            text: text || questions[index].text,
-            options: options || questions[index].options,
-            correct: correct !== undefined ? correct : questions[index].correct
+        const updatedQuestion = {
+            id,
+            text: text,
+            options: options,
+            correct: correct
         };
 
-        saveQuestions(questions);
-        res.json(questions[index]);
+        const saved = await saveQuestionToDb(updatedQuestion);
+        if (saved) {
+            res.json(saved);
+        } else {
+            res.status(404).json({ error: 'Question not found' });
+        }
     } catch (error) {
         console.error('Update question error:', error);
         res.status(500).json({ error: error.message });
@@ -189,19 +263,15 @@ app.put('/api/questions/:id', authenticateToken, (req, res) => {
 });
 
 // حذف سؤال
-app.delete('/api/questions/:id', authenticateToken, (req, res) => {
+app.delete('/api/questions/:id', authenticateToken, async (req, res) => {
     try {
-        const id = parseInt(req.params.id);
-        const index = questions.findIndex(q => q.id === id);
-
-        if (index === -1) {
-            return res.status(404).json({ error: 'Question not found' });
+        const id = req.params.id;
+        const deleted = await deleteQuestionFromDb(id);
+        if (deleted) {
+            res.json({ success: true, message: 'Question deleted' });
+        } else {
+            res.status(404).json({ error: 'Question not found' });
         }
-
-        questions.splice(index, 1);
-        saveQuestions(questions);
-
-        res.json({ success: true, message: 'Question deleted' });
     } catch (error) {
         console.error('Delete question error:', error);
         res.status(500).json({ error: error.message });
@@ -209,7 +279,7 @@ app.delete('/api/questions/:id', authenticateToken, (req, res) => {
 });
 
 // إرسال الإجابات
-app.post('/api/submit-answers', (req, res) => {
+app.post('/api/submit-answers', async (req, res) => {
     try {
         const { userName, answers } = req.body;
 
@@ -217,9 +287,7 @@ app.post('/api/submit-answers', (req, res) => {
             return res.status(400).json({ error: 'Missing userName or answers' });
         }
 
-        // تحميل الأسئلة الحالية
-        questions = loadQuestions();
-
+        const questions = await getQuestions();
         let correctCount = 0;
         const results = [];
 
@@ -244,9 +312,7 @@ app.post('/api/submit-answers', (req, res) => {
             results
         };
 
-        submissions.push(submission);
-        saveSubmissions(submissions);
-
+        await saveSubmission(submission);
         res.json(submission);
     } catch (error) {
         console.error('Submit answers error:', error);
@@ -255,9 +321,9 @@ app.post('/api/submit-answers', (req, res) => {
 });
 
 // جلب النتائج (للداشبورد)
-app.get('/api/submissions', authenticateToken, (req, res) => {
+app.get('/api/submissions', authenticateToken, async (req, res) => {
     try {
-        submissions = loadSubmissions();
+        const submissions = await getSubmissions();
         res.json(submissions);
     } catch (error) {
         console.error('Get submissions error:', error);
@@ -268,7 +334,5 @@ app.get('/api/submissions', authenticateToken, (req, res) => {
 // ========== تشغيل السيرفر ==========
 app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
-    console.log(`📁 Data directory: ${DATA_DIR}`);
-    console.log(`📝 Questions file: ${QUESTIONS_FILE}`);
-    console.log(`📊 Submissions file: ${SUBMISSIONS_FILE}`);
+    console.log(`📁 Firebase: ${firestoreAvailable ? '✅ Connected' : '❌ Not connected (using in-memory)'}`);
 });
