@@ -513,11 +513,72 @@
             color: #0b1e33;
             margin-bottom: 0.5rem;
         }
+
+        /* 404 Page Style */
+        .page-404 {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+        .page-404 .error-code {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #1d6f9c;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        .page-404 h1 {
+            font-size: 1.8rem;
+            color: #0b1e33;
+            margin-bottom: 0.5rem;
+        }
+        .page-404 p {
+            color: #4a5a6a;
+            font-size: 1.05rem;
+            margin-bottom: 2rem;
+        }
+        .page-404 .btn-404 {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            background: #1d6f9c;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .page-404 .btn-404:hover {
+            background: #155a80;
+        }
+        @media (max-width: 500px) {
+            .page-404 .error-code {
+                font-size: 4rem;
+            }
+        }
     </style>
 </head>
 <body>
 <div class="quiz-container" id="app">
-    <!-- Name Entry Screen -->
+    
+    <!-- ====== صفحة 404 ====== -->
+    <div id="page404" style="display: none;">
+        <div class="page-404">
+            <div class="logo" style="font-size:2rem;font-weight:700;color:#0b1e33;margin-bottom:1.5rem;">
+                Quiz <span style="color:#1d6f9c;">Mr. Medhat</span>
+            </div>
+            <div class="error-code">404</div>
+            <h1>الصفحة غير موجودة</h1>
+            <p>عذراً، الصفحة التي تبحث عنها غير متوفرة. قد يكون الرابط غير صحيح أو تم حذف المجموعة.</p>
+            <a href="/login" class="btn-404">تسجيل الدخول للتحكم</a>
+            <div class="admin-link" style="margin-top:1.5rem;font-size:0.9rem;">
+                <a href="/dashboard" style="color:#7f8c8d;text-decoration:none;">لوحة التحكم</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== Name Entry Screen ====== -->
     <div id="nameEntryScreen">
         <div class="logo">Quiz <span>Mr. Medhat</span></div>
         <div class="sub-logo">اختبار قواعد اللغة الإنجليزية</div>
@@ -532,7 +593,7 @@
         </div>
     </div>
 
-    <!-- Quiz Area -->
+    <!-- ====== Quiz Area ====== -->
     <div id="quizArea" style="display: none;">
         <div class="exam-header">
             <div class="group-name" id="groupNameDisplay">Quiz Mr. Medhat</div>
@@ -565,7 +626,7 @@
         </div>
     </div>
 
-    <!-- Results -->
+    <!-- ====== Results ====== -->
     <div id="resultsArea" class="results-container">
         <div class="results-card" id="resultsContent">
             <!-- dynamic -->
@@ -584,6 +645,17 @@
         const pathParts = window.location.pathname.split('/');
         const groupSlug = pathParts[1] || '';
 
+        // ====== التحقق من الصفحة الرئيسية ======
+        // إذا كان المستخدم في الصفحة الرئيسية (بدون slug)، نظهر 404
+        if (!groupSlug || groupSlug === '') {
+            document.getElementById('page404').style.display = 'block';
+            document.getElementById('nameEntryScreen').style.display = 'none';
+            document.getElementById('quizArea').style.display = 'none';
+            document.getElementById('resultsArea').style.display = 'none';
+            return; // نوقف تنفيذ باقي الكود
+        }
+
+        // ====== متغيرات ======
         let userName = '';
         let questions = [];
         let answers = [];
@@ -591,6 +663,7 @@
         let submitted = false;
         let examId = null;
 
+        // ====== عناصر DOM ======
         const nameEntryScreen = document.getElementById('nameEntryScreen');
         const quizArea = document.getElementById('quizArea');
         const resultsArea = document.getElementById('resultsArea');
@@ -614,45 +687,53 @@
         const examInfoDisplay = document.getElementById('examInfoDisplay');
         const attemptError = document.getElementById('attemptError');
 
-        // Check if we're on a group page
-        if (groupSlug) {
-            document.getElementById('examTitle').textContent = `اختبار مجموعة ${groupSlug}`;
-            document.getElementById('examSubtitle').textContent = `الرجاء إدخال اسمك لبدء اختبار ${groupSlug}`;
-        } else {
-            document.getElementById('examTitle').textContent = 'أهلاً بك في الاختبار';
-            document.getElementById('examSubtitle').textContent = 'الرجاء إدخال اسمك لبدء الاختبار';
-        }
+        // تحديث عنوان الصفحة
+        document.getElementById('examTitle').textContent = `اختبار مجموعة ${groupSlug}`;
+        document.getElementById('examSubtitle').textContent = `الرجاء إدخال اسمك لبدء اختبار ${groupSlug}`;
 
+        // ====== تحميل أسئلة الامتحان ======
         async function loadExamQuestions() {
             try {
-                let url = `${API_URL}/api/questions`;
-                if (groupSlug) {
-                    const examResponse = await fetch(`${API_URL}/api/exam/${groupSlug}`);
-                    if (examResponse.status === 404) {
-                        document.getElementById('examSubtitle').textContent = 'لا يوجد امتحان منشور لهذه المجموعة.';
-                        return [];
-                    }
-                    const examData = await examResponse.json();
-                    if (examData.exam) {
-                        examId = examData.exam.id;
-                        questions = examData.questions || [];
-                        groupNameDisplay.textContent = `مجموعة ${groupSlug}`;
-                        examInfoDisplay.textContent = `عدد الأسئلة: ${questions.length}`;
-                        return questions;
-                    }
-                }
+                const examResponse = await fetch(`${API_URL}/api/exam/${groupSlug}`);
                 
-                const response = await fetch(`${API_URL}/api/questions`);
-                const data = await response.json();
-                questions = data;
-                return questions;
+                if (examResponse.status === 404) {
+                    // المجموعة غير موجودة أو لا يوجد امتحان
+                    document.getElementById('examSubtitle').textContent = 'هذه المجموعة غير موجودة أو لا يوجد لها امتحان.';
+                    startBtn.disabled = true;
+                    return [];
+                }
+
+                const examData = await examResponse.json();
+                
+                if (examData.exam) {
+                    examId = examData.exam.id;
+                    questions = examData.questions || [];
+                    groupNameDisplay.textContent = `مجموعة ${groupSlug}`;
+                    examInfoDisplay.textContent = `عدد الأسئلة: ${questions.length}`;
+                    startBtn.disabled = false;
+                    
+                    if (questions.length === 0) {
+                        document.getElementById('examSubtitle').textContent = 'لا توجد أسئلة لهذا الامتحان.';
+                        startBtn.disabled = true;
+                    }
+                    
+                    return questions;
+                } else {
+                    // لا يوجد امتحان
+                    document.getElementById('examSubtitle').textContent = 'لا يوجد امتحان منشور لهذه المجموعة.';
+                    startBtn.disabled = true;
+                    return [];
+                }
             } catch (error) {
                 console.error('Error loading questions:', error);
+                document.getElementById('examSubtitle').textContent = 'حدث خطأ في تحميل الامتحان.';
+                startBtn.disabled = true;
                 questions = [];
                 return questions;
             }
         }
 
+        // ====== بدء الاختبار ======
         startBtn.addEventListener('click', async function() {
             const name = userNameInput.value.trim();
             if (!name) {
@@ -689,6 +770,7 @@
             }
         });
 
+        // ====== عرض السؤال ======
         function renderQuestion(index) {
             if (!questions || questions.length === 0) return;
             const q = questions[index];
@@ -728,6 +810,7 @@
         prevBtn.addEventListener('click', () => goTo(currentIndex - 1));
         nextBtn.addEventListener('click', () => goTo(currentIndex + 1));
 
+        // ====== إنهاء الاختبار ======
         submitBtn.addEventListener('click', function() {
             if (submitted) return;
             if (questions.length === 0) return;
@@ -744,7 +827,7 @@
         async function submitAnswers() {
             try {
                 const payload = {
-                    groupSlug: groupSlug || 'default',
+                    groupSlug: groupSlug,
                     studentName: userName,
                     answers: answers
                 };
@@ -775,6 +858,7 @@
             }
         }
 
+        // ====== عرض النتائج المحلية (في حالة الخطأ) ======
         function displayLocalResults() {
             let correct = 0;
             const results = questions.map((q, idx) => {
@@ -791,7 +875,7 @@
             });
             displayResults({
                 studentName: userName,
-                groupSlug: groupSlug || 'default',
+                groupSlug: groupSlug,
                 total: questions.length,
                 correct,
                 score: Math.round((correct / questions.length) * 100),
@@ -799,6 +883,7 @@
             });
         }
 
+        // ====== عرض النتائج ======
         function displayResults(result) {
             const { total, correct, score, results } = result;
             const wrong = results ? results.filter(r => r.selected !== null && !r.isCorrect).length : 0;
@@ -837,7 +922,7 @@
                 </div>
                 <div style="margin: 0.8rem 0 0.2rem 0; font-weight: 500; font-size: 1.1rem;">التقييم: ${performance}</div>
                 <div style="margin: 0.3rem 0 0.8rem 0; color: #4a5a6a; font-size: 0.95rem;">الاسم: ${result.studentName || userName}</div>
-                <div style="margin-bottom: 0.8rem; color: #4a5a6a; font-size: 0.95rem;">المجموعة: ${result.groupSlug || groupSlug || 'عام'}</div>
+                <div style="margin-bottom: 0.8rem; color: #4a5a6a; font-size: 0.95rem;">المجموعة: ${result.groupSlug || groupSlug}</div>
                 <div class="review-list">${reviewHtml}</div>
             `;
 
@@ -848,7 +933,7 @@
             let reportLines = [];
             reportLines.push('تقرير اختبار القواعد');
             reportLines.push(`الاسم: ${result.studentName || userName}`);
-            reportLines.push(`المجموعة: ${result.groupSlug || groupSlug || 'عام'}`);
+            reportLines.push(`المجموعة: ${result.groupSlug || groupSlug}`);
             reportLines.push(`النتيجة: ${correct} / ${total} (${score}%)`);
             reportLines.push(`صحيح: ${correct} | خاطئ: ${wrong} | لم يجب: ${unanswered}`);
             reportLines.push(`التقييم: ${performance}`);
@@ -868,6 +953,7 @@
             shareReportBox.textContent = window._reportText;
         }
 
+        // ====== مشاركة التقرير ======
         shareReportBtn.addEventListener('click', function() {
             if (shareReportBox.classList.contains('hidden')) {
                 shareReportBox.classList.remove('hidden');
@@ -877,6 +963,7 @@
             }
         });
 
+        // ====== إعادة الاختبار ======
         restartBtn.addEventListener('click', function() {
             if (!confirm('إعادة الاختبار؟ سيتم فقدان التقدم الحالي.')) return;
             answers.fill(null);
@@ -895,6 +982,7 @@
             }
         });
 
+        // ====== تحميل الأسئلة عند بدء التشغيل ======
         loadExamQuestions().then(() => {
             nameEntryScreen.style.display = 'block';
             quizArea.style.display = 'none';
