@@ -5,20 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة التحكم - Quiz Mr. Medhat</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: #f0f4f8;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 20px;
         }
-        .dashboard-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .dashboard-container { max-width: 1200px; margin: 0 auto; }
         .header {
             background: white;
             padding: 20px 30px;
@@ -31,22 +24,14 @@
             flex-wrap: wrap;
             gap: 15px;
         }
-        .header h1 {
-            font-size: 22px;
-            color: #1a2a3a;
-        }
-        .header h1 span {
-            color: #1d6f9c;
-        }
+        .header h1 { font-size: 22px; color: #1a2a3a; }
+        .header h1 span { color: #1d6f9c; }
         .header .user-info {
             display: flex;
             align-items: center;
             gap: 15px;
         }
-        .header .user-info span {
-            color: #4a5a6a;
-            font-weight: 500;
-        }
+        .header .user-info span { color: #4a5a6a; font-weight: 500; }
         .btn-logout {
             padding: 8px 20px;
             background: #e74c3c;
@@ -57,9 +42,8 @@
             font-weight: 600;
             font-size: 14px;
         }
-        .btn-logout:hover {
-            background: #c0392b;
-        }
+        .btn-logout:hover { background: #c0392b; }
+
         .tabs {
             display: flex;
             gap: 10px;
@@ -81,15 +65,11 @@
             color: white;
             border-color: #1a3a5c;
         }
-        .tab-btn:hover:not(.active) {
-            background: #e8edf3;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
+        .tab-btn:hover:not(.active) { background: #e8edf3; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
         .card {
             background: white;
             border-radius: 12px;
@@ -102,7 +82,13 @@
             font-weight: 600;
             color: #1a2a3a;
             margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -120,99 +106,118 @@
             border-bottom: 1px solid #e8edf3;
             vertical-align: middle;
         }
-        table tr:hover {
-            background: #fafbfc;
-        }
-        .badge {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .badge-correct { background: #d4edda; color: #155724; }
-        .badge-wrong { background: #f8d7da; color: #721c24; }
-        .badge-unanswered { background: #fff3cd; color: #856404; }
-        .btn-sm {
-            padding: 4px 12px;
+        table tr:hover { background: #fafbfc; }
+
+        .btn {
+            padding: 6px 14px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 13px;
             font-weight: 500;
+            font-size: 13px;
             transition: opacity 0.2s;
         }
-        .btn-sm:hover { opacity: 0.8; }
-        .btn-edit { background: #f39c12; color: white; }
-        .btn-delete { background: #e74c3c; color: white; }
-        .btn-add {
-            background: #27ae60;
-            color: white;
-            padding: 8px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .btn-add:hover { background: #1e8449; }
-        .btn-save {
-            background: #2c6f9c;
-            color: white;
-            padding: 6px 18px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .btn-save:hover { background: #1a4a6e; }
-        .btn-cancel {
-            background: #95a5a6;
-            color: white;
-            padding: 6px 18px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .form-inline {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .form-inline input, .form-inline select {
-            padding: 6px 12px;
-            border: 2px solid #dce4ec;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .form-inline input:focus, .form-inline select:focus {
-            outline: none;
-            border-color: #2c6f9c;
-        }
-        .editing-row input, .editing-row select {
-            padding: 4px 8px;
-            border: 2px solid #f39c12;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        .editing-row input:focus, .editing-row select:focus {
-            outline: none;
-            border-color: #e67e22;
-        }
-        .question-text-cell {
-            max-width: 300px;
-            word-break: break-word;
-        }
+        .btn:hover { opacity: 0.8; }
+        .btn-primary { background: #2c6f9c; color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-warning { background: #f39c12; color: white; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
         .empty-state {
             text-align: center;
             color: #7f8c8d;
             padding: 30px 0;
         }
-        .submissions-list {
-            max-height: 500px;
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 700px;
+            width: 95%;
+            max-height: 90vh;
             overflow-y: auto;
         }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 { color: #1a2a3a; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #dce4ec;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #2c6f9c;
+        }
+
+        .question-item {
+            background: #f7f9fc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid #e8edf3;
+        }
+        .question-item .q-number {
+            font-weight: 600;
+            color: #2c6f9c;
+        }
+        .question-item .options-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        .question-item .options-list .opt {
+            background: white;
+            padding: 2px 10px;
+            border-radius: 4px;
+            border: 1px solid #dce4ec;
+            font-size: 13px;
+        }
+        .question-item .options-list .opt.correct {
+            background: #d4edda;
+            border-color: #27ae60;
+        }
+
         .submission-item {
             border: 1px solid #e8edf3;
             border-radius: 8px;
@@ -226,94 +231,58 @@
             gap: 10px;
             margin-bottom: 8px;
         }
-        .submission-item .info .name {
-            font-weight: 600;
-            color: #1a2a3a;
-        }
-        .submission-item .info .score {
-            font-weight: 600;
-            color: #2c6f9c;
-        }
-        .submission-item .details {
+        .submission-item .info .name { font-weight: 600; color: #1a2a3a; }
+        .submission-item .info .score { font-weight: 600; color: #2c6f9c; }
+        .submission-item .info .group { color: #7f8c8d; font-size: 13px; }
+        .submission-item .actions {
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 6px;
-        }
-        .submission-item .details .q-badge {
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            background: #f0f4f8;
-        }
-        .submission-item .details .q-badge.correct {
-            background: #d4edda;
-            color: #155724;
-        }
-        .submission-item .details .q-badge.wrong {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .submission-item .details .q-badge.unanswered {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .options-input-group {
-            display: flex;
-            flex-wrap: wrap;
             gap: 8px;
-            margin: 8px 0;
+            margin-top: 10px;
         }
-        .options-input-group input {
-            padding: 6px 12px;
-            border: 2px solid #dce4ec;
-            border-radius: 4px;
-            font-size: 14px;
-            flex: 1;
-            min-width: 150px;
+
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
         }
-        .options-input-group input:focus {
-            outline: none;
-            border-color: #2c6f9c;
-        }
-        .option-count-selector {
+        .badge-correct { background: #d4edda; color: #155724; }
+        .badge-wrong { background: #f8d7da; color: #721c24; }
+        .badge-unanswered { background: #fff3cd; color: #856404; }
+
+        .answer-detail-item {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 10px 0;
-        }
-        .option-count-selector select {
-            padding: 6px 12px;
-            border: 2px solid #dce4ec;
-            border-radius: 4px;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #e8edf3;
             font-size: 14px;
         }
+        .answer-detail-item .q-text { flex: 1; margin-right: 10px; }
+        .answer-detail-item .user-ans { font-weight: 600; margin: 0 10px; }
+        .answer-detail-item .correct-ans { color: #27ae60; font-weight: 600; }
+
+        .group-chip {
+            display: inline-block;
+            background: #e8edf3;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            margin: 3px;
+        }
+
         @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                align-items: stretch;
-                text-align: center;
-            }
-            .header .user-info {
-                justify-content: center;
-            }
-            .tabs {
-                justify-content: center;
-            }
-            table {
-                font-size: 12px;
-            }
-            table th, table td {
-                padding: 8px 6px;
-            }
-            .question-text-cell {
-                max-width: 150px;
-            }
+            .header { flex-direction: column; align-items: stretch; text-align: center; }
+            .header .user-info { justify-content: center; }
+            .tabs { justify-content: center; }
+            table { font-size: 12px; }
+            table th, table td { padding: 6px; }
         }
     </style>
 </head>
 <body>
-    <div class="dashboard-container" id="app">
+    <div class="dashboard-container">
+        <!-- Header -->
         <div class="header">
             <h1>Quiz <span>Mr. Medhat</span> - لوحة التحكم</h1>
             <div class="user-info">
@@ -322,65 +291,109 @@
             </div>
         </div>
 
+        <!-- Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" data-tab="submissions">نتائج الطلاب</button>
-            <button class="tab-btn" data-tab="questions">إدارة الأسئلة</button>
+            <button class="tab-btn active" data-tab="groups">المجموعات</button>
+            <button class="tab-btn" data-tab="exams">الامتحانات</button>
+            <button class="tab-btn" data-tab="submissions">نتائج الطلاب</button>
         </div>
 
-        <div id="submissionsTab" class="tab-content active">
+        <!-- Tab: Groups -->
+        <div id="groupsTab" class="tab-content active">
             <div class="card">
-                <div class="card-title">نتائج الاختبارات</div>
+                <div class="card-title">
+                    <span>المجموعات</span>
+                    <button class="btn btn-success" onclick="showAddGroup()">+ إضافة مجموعة</button>
+                </div>
+                <div id="groupsContainer">
+                    <div class="empty-state">جاري تحميل المجموعات...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Exams -->
+        <div id="examsTab" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    <span>الامتحانات</span>
+                    <button class="btn btn-success" onclick="showCreateExam()">+ إنشاء امتحان جديد</button>
+                </div>
+                <div id="examsContainer">
+                    <div class="empty-state">جاري تحميل الامتحانات...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Submissions -->
+        <div id="submissionsTab" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    <span>نتائج الطلاب</span>
+                    <div>
+                        <select id="filterGroup" onchange="loadSubmissions()" style="padding:6px 12px;border:2px solid #dce4ec;border-radius:4px;">
+                            <option value="">جميع المجموعات</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="submissionsContainer">
                     <div class="empty-state">جاري تحميل النتائج...</div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div id="questionsTab" class="tab-content">
-            <div class="card">
-                <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <span>الأسئلة</span>
-                    <button class="btn-add" onclick="showAddQuestion()">+ إضافة سؤال جديد</button>
-                </div>
-                <div id="questionsContainer">
-                    <div class="empty-state">جاري تحميل الأسئلة...</div>
-                </div>
+    <!-- Modal: Add Group -->
+    <div class="modal" id="addGroupModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة مجموعة جديدة</h2>
+                <button class="modal-close" onclick="closeModal('addGroupModal')">×</button>
             </div>
-            <div id="addQuestionForm" style="display: none;" class="card">
-                <div class="card-title">إضافة سؤال جديد</div>
-                <form id="newQuestionForm" onsubmit="addQuestion(event)">
-                    <div style="margin-bottom: 12px;">
-                        <label style="display: block; font-weight: 600; margin-bottom: 4px;">نص السؤال</label>
-                        <input type="text" id="newQuestionText" required style="width: 100%; padding: 8px 12px; border: 2px solid #dce4ec; border-radius: 4px;">
-                    </div>
-                    <div class="option-count-selector">
-                        <label style="font-weight: 600;">عدد الاختيارات:</label>
-                        <select id="newOptionCount" onchange="updateNewOptions()">
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4" selected>4</option>
-                            <option value="5">5</option>
-                            <option value="6">6</option>
-                        </select>
-                    </div>
-                    <div id="newOptionsContainer" style="margin-bottom: 12px;"></div>
-                    <div style="margin-bottom: 12px;">
-                        <label style="display: block; font-weight: 600; margin-bottom: 4px;">رقم الإجابة الصحيحة</label>
-                        <select id="newCorrectAnswer">
-                            <option value="0">A</option>
-                            <option value="1">B</option>
-                            <option value="2">C</option>
-                            <option value="3">D</option>
-                            <option value="4">E</option>
-                            <option value="5">F</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button type="submit" class="btn-add">حفظ السؤال</button>
-                        <button type="button" class="btn-cancel" onclick="hideAddQuestion()">إلغاء</button>
-                    </div>
-                </form>
+            <form id="addGroupForm" onsubmit="addGroup(event)">
+                <div class="form-group">
+                    <label>اسم المجموعة</label>
+                    <input type="text" id="groupNameInput" placeholder="مثال: John" required>
+                </div>
+                <button type="submit" class="btn btn-success">حفظ</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create Exam -->
+    <div class="modal" id="createExamModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>إنشاء امتحان جديد</h2>
+                <button class="modal-close" onclick="closeModal('createExamModal')">×</button>
             </div>
+            <form id="createExamForm" onsubmit="createExam(event)">
+                <div class="form-group">
+                    <label>اختر المجموعة</label>
+                    <select id="examGroupSelect" required>
+                        <option value="">-- اختر مجموعة --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>عدد الأسئلة</label>
+                    <input type="number" id="examQuestionCount" value="5" min="1" max="50">
+                </div>
+                <div id="examQuestionsContainer"></div>
+                <div style="display:flex;gap:10px;margin-top:15px;">
+                    <button type="submit" class="btn btn-success">حفظ ونشر</button>
+                    <button type="button" class="btn btn-warning" onclick="closeModal('createExamModal')">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Student Answers -->
+    <div class="modal" id="answersModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إجابات الطالب</h2>
+                <button class="modal-close" onclick="closeModal('answersModal')">×</button>
+            </div>
+            <div id="answersContent"></div>
         </div>
     </div>
 
@@ -388,8 +401,6 @@
         const API_URL = window.location.origin;
         let token = localStorage.getItem('token');
         let username = localStorage.getItem('username') || 'مستخدم';
-        let questions = [];
-        let editingId = null;
 
         if (!token) {
             window.location.href = '/login';
@@ -397,13 +408,15 @@
 
         document.getElementById('userDisplay').textContent = `مرحباً، ${username}`;
 
+        // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
                 document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
                 document.getElementById(this.dataset.tab + 'Tab').classList.add('active');
-                if (this.dataset.tab === 'questions') loadQuestions();
+                if (this.dataset.tab === 'groups') loadGroups();
+                if (this.dataset.tab === 'exams') loadExams();
                 if (this.dataset.tab === 'submissions') loadSubmissions();
             });
         });
@@ -414,41 +427,344 @@
             window.location.href = '/login';
         }
 
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        // ========== GROUPS ==========
+        async function loadGroups() {
+            const container = document.getElementById('groupsContainer');
+            try {
+                const response = await fetch(`${API_URL}/api/groups`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                const data = await response.json();
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="empty-state">لا توجد مجموعات. أضف مجموعة جديدة.</div>';
+                    return;
+                }
+                let html = `<table>
+                    <thead><tr><th>#</th><th>اسم المجموعة</th><th>الرابط</th><th>الإجراءات</th></tr></thead>
+                    <tbody>`;
+                data.forEach((g, i) => {
+                    const link = `${window.location.origin}/${g.slug}`;
+                    html += `<tr>
+                        <td>${i + 1}</td>
+                        <td>${g.name}</td>
+                        <td><a href="${link}" target="_blank">/${g.slug}</a></td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteGroup('${g.id}')">حذف</button>
+                        </td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<div class="empty-state">حدث خطأ في تحميل المجموعات.</div>';
+                console.error(error);
+            }
+        }
+
+        function showAddGroup() {
+            document.getElementById('groupNameInput').value = '';
+            openModal('addGroupModal');
+        }
+
+        async function addGroup(e) {
+            e.preventDefault();
+            const name = document.getElementById('groupNameInput').value.trim();
+            if (!name) { alert('الرجاء إدخال اسم المجموعة'); return; }
+
+            try {
+                const response = await fetch(`${API_URL}/api/groups`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name })
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                closeModal('addGroupModal');
+                loadGroups();
+                // Also update group select in exam form
+                populateGroupSelect();
+            } catch (error) {
+                alert('حدث خطأ في إضافة المجموعة.');
+                console.error(error);
+            }
+        }
+
+        async function deleteGroup(id) {
+            if (!confirm('هل أنت متأكد من حذف هذه المجموعة؟')) return;
+            try {
+                const response = await fetch(`${API_URL}/api/groups/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                loadGroups();
+                populateGroupSelect();
+            } catch (error) {
+                alert('حدث خطأ في حذف المجموعة.');
+                console.error(error);
+            }
+        }
+
+        // ========== EXAMS ==========
+        async function loadExams() {
+            const container = document.getElementById('examsContainer');
+            try {
+                const response = await fetch(`${API_URL}/api/exams`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                const data = await response.json();
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="empty-state">لا توجد امتحانات. أنشئ امتحاناً جديداً.</div>';
+                    return;
+                }
+                let html = `<table>
+                    <thead><tr><th>#</th><th>المجموعة</th><th>عدد الأسئلة</th><th>الحالة</th><th>الرابط</th><th>الإجراءات</th></tr></thead>
+                    <tbody>`;
+                data.forEach((exam, i) => {
+                    const link = `${window.location.origin}/${exam.groupSlug}`;
+                    const status = exam.isPublished ? '✅ منشور' : '⏳ غير منشور';
+                    html += `<tr>
+                        <td>${i + 1}</td>
+                        <td>${exam.groupName || exam.groupSlug}</td>
+                        <td>${exam.questionsCount || 0}</td>
+                        <td>${status}</td>
+                        <td><a href="${link}" target="_blank">/${exam.groupSlug}</a></td>
+                        <td>
+                            ${!exam.isPublished ? `<button class="btn btn-success btn-sm" onclick="publishExam('${exam.id}')">نشر</button>` : ''}
+                            <button class="btn btn-danger btn-sm" onclick="deleteExam('${exam.id}')">حذف</button>
+                        </td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<div class="empty-state">حدث خطأ في تحميل الامتحانات.</div>';
+                console.error(error);
+            }
+        }
+
+        async function populateGroupSelect() {
+            try {
+                const response = await fetch(`${API_URL}/api/groups`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                const data = await response.json();
+                const select = document.getElementById('examGroupSelect');
+                select.innerHTML = '<option value="">-- اختر مجموعة --</option>';
+                data.forEach(g => {
+                    select.innerHTML += `<option value="${g.id}" data-slug="${g.slug}">${g.name}</option>`;
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function showCreateExam() {
+            populateGroupSelect();
+            document.getElementById('examQuestionsContainer').innerHTML = '';
+            document.getElementById('examQuestionCount').value = 5;
+            updateQuestionFields();
+            openModal('createExamModal');
+        }
+
+        function updateQuestionFields() {
+            const count = parseInt(document.getElementById('examQuestionCount').value) || 5;
+            const container = document.getElementById('examQuestionsContainer');
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div class="question-item">
+                        <div class="q-number">السؤال ${i + 1}</div>
+                        <div class="form-group" style="margin-top:5px;">
+                            <input type="text" id="q_text_${i}" placeholder="نص السؤال" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <div class="form-group" style="flex:1;min-width:100px;">
+                                <label style="font-size:12px;">الاختيار A</label>
+                                <input type="text" id="q_opt_${i}_0" placeholder="A" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                            <div class="form-group" style="flex:1;min-width:100px;">
+                                <label style="font-size:12px;">الاختيار B</label>
+                                <input type="text" id="q_opt_${i}_1" placeholder="B" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                            <div class="form-group" style="flex:1;min-width:100px;">
+                                <label style="font-size:12px;">الاختيار C</label>
+                                <input type="text" id="q_opt_${i}_2" placeholder="C" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                            <div class="form-group" style="flex:1;min-width:100px;">
+                                <label style="font-size:12px;">الاختيار D</label>
+                                <input type="text" id="q_opt_${i}_3" placeholder="D" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top:5px;">
+                            <label style="font-size:12px;">الإجابة الصحيحة</label>
+                            <select id="q_correct_${i}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                <option value="0">A</option>
+                                <option value="1">B</option>
+                                <option value="2">C</option>
+                                <option value="3">D</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        document.getElementById('examQuestionCount').addEventListener('change', updateQuestionFields);
+
+        async function createExam(e) {
+            e.preventDefault();
+            const groupSelect = document.getElementById('examGroupSelect');
+            const groupId = groupSelect.value;
+            const groupSlug = groupSelect.options[groupSelect.selectedIndex]?.dataset?.slug;
+            const count = parseInt(document.getElementById('examQuestionCount').value);
+
+            if (!groupId) { alert('الرجاء اختيار مجموعة.'); return; }
+
+            const questions = [];
+            let valid = true;
+            for (let i = 0; i < count; i++) {
+                const text = document.getElementById(`q_text_${i}`).value.trim();
+                const options = [];
+                for (let j = 0; j < 4; j++) {
+                    const opt = document.getElementById(`q_opt_${i}_${j}`).value.trim();
+                    if (opt) options.push(opt);
+                }
+                const correct = parseInt(document.getElementById(`q_correct_${i}`).value);
+
+                if (!text) {
+                    alert(`الرجاء إدخال نص السؤال ${i + 1}`);
+                    valid = false;
+                    return;
+                }
+                if (options.length < 2) {
+                    alert(`السؤال ${i + 1} يحتاج إلى خيارين على الأقل.`);
+                    valid = false;
+                    return;
+                }
+                questions.push({ text, options, correct });
+            }
+
+            if (!valid) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/exams`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ groupId, groupSlug, questions })
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                closeModal('createExamModal');
+                loadExams();
+            } catch (error) {
+                alert('حدث خطأ في إنشاء الامتحان.');
+                console.error(error);
+            }
+        }
+
+        async function publishExam(id) {
+            if (!confirm('هل أنت متأكد من نشر هذا الامتحان؟')) return;
+            try {
+                const response = await fetch(`${API_URL}/api/exams/${id}/publish`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                loadExams();
+            } catch (error) {
+                alert('حدث خطأ في نشر الامتحان.');
+                console.error(error);
+            }
+        }
+
+        async function deleteExam(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا الامتحان؟')) return;
+            try {
+                const response = await fetch(`${API_URL}/api/exams/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                loadExams();
+            } catch (error) {
+                alert('حدث خطأ في حذف الامتحان.');
+                console.error(error);
+            }
+        }
+
+        // ========== SUBMISSIONS ==========
+        async function populateFilterGroups() {
+            try {
+                const response = await fetch(`${API_URL}/api/groups`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                const data = await response.json();
+                const select = document.getElementById('filterGroup');
+                select.innerHTML = '<option value="">جميع المجموعات</option>';
+                data.forEach(g => {
+                    select.innerHTML += `<option value="${g.slug}">${g.name}</option>`;
+                });
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
         async function loadSubmissions() {
             const container = document.getElementById('submissionsContainer');
+            const filterGroup = document.getElementById('filterGroup').value;
+            
             try {
                 const response = await fetch(`${API_URL}/api/submissions`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (response.status === 403 || response.status === 401) {
-                    logout();
-                    return;
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                let data = await response.json();
+                
+                // Filter by group
+                if (filterGroup) {
+                    data = data.filter(s => s.groupSlug === filterGroup);
                 }
-                const data = await response.json();
+
                 if (data.length === 0) {
                     container.innerHTML = '<div class="empty-state">لا توجد نتائج مسجلة حتى الآن.</div>';
                     return;
                 }
-                let html = '<div class="submissions-list">';
-                data.forEach(sub => {
+
+                let html = '';
+                data.forEach((sub, idx) => {
                     html += `
                         <div class="submission-item">
                             <div class="info">
-                                <span class="name">${sub.userName || 'مجهول'}</span>
+                                <span class="name">${sub.studentName || 'مجهول'}</span>
+                                <span class="group">📚 ${sub.groupSlug || 'بدون مجموعة'}</span>
                                 <span class="score">${sub.correct || 0} / ${sub.total || 0} (${sub.score || 0}%)</span>
                                 <span style="font-size: 13px; color: #7f8c8d;">${new Date(sub.timestamp).toLocaleString('ar-EG')}</span>
                             </div>
-                            <div class="details">
-                                ${sub.results ? sub.results.map((r, i) => {
-                                    let cls = r.isCorrect ? 'correct' : (r.userAnswer !== undefined ? 'wrong' : 'unanswered');
-                                    let label = r.isCorrect ? '✓' : (r.userAnswer !== undefined ? '✗' : '—');
-                                    return `<span class="q-badge ${cls}">${i+1}: ${label}</span>`;
-                                }).join('') : ''}
+                            <div class="actions">
+                                <button class="btn btn-primary btn-sm" onclick="showStudentAnswers('${sub.id}')">📋 إجابات الطالب</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSubmission('${sub.id}')">🗑️ حذف</button>
                             </div>
                         </div>
                     `;
                 });
-                html += '</div>';
                 container.innerHTML = html;
             } catch (error) {
                 container.innerHTML = '<div class="empty-state">حدث خطأ في تحميل النتائج.</div>';
@@ -456,249 +772,75 @@
             }
         }
 
-        async function loadQuestions() {
-            const container = document.getElementById('questionsContainer');
+        async function showStudentAnswers(id) {
             try {
-                const response = await fetch(`${API_URL}/api/questions`);
-                questions = await response.json();
-                if (questions.length === 0) {
-                    container.innerHTML = '<div class="empty-state">لا توجد أسئلة. أضف سؤالاً جديداً.</div>';
-                    return;
-                }
+                const response = await fetch(`${API_URL}/api/submissions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                const data = await response.json();
+                const submission = data.find(s => s.id === id);
+                if (!submission) { alert('لم يتم العثور على النتائج.'); return; }
+
+                const container = document.getElementById('answersContent');
                 let html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 40px;">#</th>
-                                <th>السؤال</th>
-                                <th style="width: 100px;">الاختيارات</th>
-                                <th style="width: 100px;">الإجابة الصحيحة</th>
-                                <th style="width: 150px;">الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                questions.forEach((q, idx) => {
-                    const isEditing = editingId === q.id;
-                    const correctLetter = String.fromCharCode(65 + q.correct);
-                    html += `<tr ${isEditing ? 'class="editing-row"' : ''}>`;
-                    html += `<td>${idx + 1}</td>`;
-                    if (isEditing) {
-                        html += `
-                            <td><input type="text" id="editText_${q.id}" value="${q.text.replace(/"/g, '&quot;')}" style="width: 100%;"></td>
-                            <td>
-                                <select id="editOptionCount_${q.id}" onchange="updateEditOptions('${q.id}')">
-                                    ${[2,3,4,5,6].map(n => `<option value="${n}" ${n === q.options.length ? 'selected' : ''}>${n}</option>`).join('')}
-                                </select>
-                                <div id="editOptionsContainer_${q.id}" style="margin-top:4px;">
-                                    ${q.options.map((opt, oi) => `<input type="text" value="${opt.replace(/"/g, '&quot;')}" style="display:block;width:100%;margin:2px 0;padding:2px 6px;border:1px solid #dce4ec;border-radius:4px;" data-optindex="${oi}">`).join('')}
-                                </div>
-                            </td>
-                            <td>
-                                <select id="editCorrect_${q.id}">
-                                    ${q.options.map((opt, oi) => `<option value="${oi}" ${oi === q.correct ? 'selected' : ''}>${String.fromCharCode(65 + oi)}</option>`).join('')}
-                                </select>
-                            </td>
-                            <td>
-                                <button class="btn-sm btn-save" onclick="saveEdit('${q.id}')">حفظ</button>
-                                <button class="btn-sm btn-cancel" onclick="cancelEdit()">إلغاء</button>
-                            </td>
-                        `;
-                    } else {
-                        html += `
-                            <td class="question-text-cell">${q.text}</td>
-                            <td>${q.options.length}</td>
-                            <td>${correctLetter}</td>
-                            <td>
-                                <button class="btn-sm btn-edit" onclick="startEdit('${q.id}')">تعديل</button>
-                                <button class="btn-sm btn-delete" onclick="deleteQuestion('${q.id}')">حذف</button>
-                            </td>
-                        `;
-                    }
-                    html += '</tr>';
-                });
-                html += '</tbody></table>';
-                container.innerHTML = html;
-            } catch (error) {
-                container.innerHTML = '<div class="empty-state">حدث خطأ في تحميل الأسئلة.</div>';
-                console.error(error);
-            }
-        }
-
-        function updateNewOptions() {
-            const count = parseInt(document.getElementById('newOptionCount').value);
-            const container = document.getElementById('newOptionsContainer');
-            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-            let html = '';
-            for (let i = 0; i < count; i++) {
-                html += `
-                    <div style="display:flex;align-items:center;gap:8px;margin:4px 0;">
-                        <span style="font-weight:600;width:24px;">${letters[i]}:</span>
-                        <input type="text" id="newOption_${i}" placeholder="اختيار ${letters[i]}" style="flex:1;padding:6px 12px;border:2px solid #dce4ec;border-radius:4px;">
+                    <div style="margin-bottom:15px;">
+                        <strong>الطالب:</strong> ${submission.studentName}<br>
+                        <strong>المجموعة:</strong> ${submission.groupSlug}<br>
+                        <strong>النتيجة:</strong> ${submission.correct} / ${submission.total} (${submission.score}%)
                     </div>
+                    <hr style="margin:10px 0;">
                 `;
-            }
-            container.innerHTML = html;
-            
-            const correctSelect = document.getElementById('newCorrectAnswer');
-            correctSelect.innerHTML = '';
-            for (let i = 0; i < count; i++) {
-                correctSelect.innerHTML += `<option value="${i}">${letters[i]}</option>`;
-            }
-        }
 
-        function updateEditOptions(id) {
-            const count = parseInt(document.getElementById(`editOptionCount_${id}`).value);
-            const container = document.getElementById(`editOptionsContainer_${id}`);
-            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-            let html = '';
-            for (let i = 0; i < count; i++) {
-                const existing = document.querySelectorAll(`#editOptionsContainer_${id} input`);
-                const val = existing[i] ? existing[i].value : '';
-                html += `<input type="text" value="${val}" style="display:block;width:100%;margin:2px 0;padding:2px 6px;border:1px solid #dce4ec;border-radius:4px;" data-optindex="${i}">`;
-            }
-            container.innerHTML = html;
-            
-            const correctSelect = document.getElementById(`editCorrect_${id}`);
-            correctSelect.innerHTML = '';
-            for (let i = 0; i < count; i++) {
-                correctSelect.innerHTML += `<option value="${i}">${letters[i]}</option>`;
-            }
-        }
-
-        function showAddQuestion() {
-            document.getElementById('addQuestionForm').style.display = 'block';
-            updateNewOptions();
-        }
-
-        function hideAddQuestion() {
-            document.getElementById('addQuestionForm').style.display = 'none';
-            document.getElementById('newQuestionForm').reset();
-        }
-
-        async function addQuestion(e) {
-            e.preventDefault();
-            const text = document.getElementById('newQuestionText').value.trim();
-            const count = parseInt(document.getElementById('newOptionCount').value);
-            const options = [];
-            for (let i = 0; i < count; i++) {
-                const val = document.getElementById(`newOption_${i}`).value.trim();
-                if (!val) {
-                    alert(`الرجاء إدخال نص الاختيار ${String.fromCharCode(65 + i)}`);
-                    return;
+                if (submission.results && submission.results.length > 0) {
+                    submission.results.forEach((r, i) => {
+                        const userLetter = r.userAnswer !== null ? String.fromCharCode(65 + r.userAnswer) : '—';
+                        const correctLetter = String.fromCharCode(65 + r.correctAnswer);
+                        const isCorrect = r.isCorrect;
+                        html += `
+                            <div class="answer-detail-item" style="${isCorrect ? 'background:#f2faf5;' : 'background:#fdf3f3;'}">
+                                <span class="q-text">${i+1}. ${r.questionText || 'سؤال'}</span>
+                                <span class="user-ans" style="${isCorrect ? 'color:#27ae60;' : 'color:#e74c3c;'}">
+                                    إجابتك: ${userLetter}
+                                </span>
+                                ${!isCorrect ? `<span class="correct-ans">الصحيح: ${correctLetter}</span>` : ''}
+                                <span>${isCorrect ? '✅' : '❌'}</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<div class="empty-state">لا توجد تفاصيل للإجابات.</div>';
                 }
-                options.push(val);
-            }
-            const correct = parseInt(document.getElementById('newCorrectAnswer').value);
 
-            if (!text) {
-                alert('الرجاء إدخال نص السؤال.');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/api/questions`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ text, options, correct })
-                });
-                if (response.status === 403 || response.status === 401) {
-                    logout();
-                    return;
-                }
-                hideAddQuestion();
-                await loadQuestions();
+                container.innerHTML = html;
+                openModal('answersModal');
             } catch (error) {
-                alert('حدث خطأ في إضافة السؤال.');
+                alert('حدث خطأ في تحميل إجابات الطالب.');
                 console.error(error);
             }
         }
 
-        function startEdit(id) {
-            editingId = id;
-            loadQuestions();
-        }
-
-        function cancelEdit() {
-            editingId = null;
-            loadQuestions();
-        }
-
-        async function saveEdit(id) {
-            const textInput = document.getElementById(`editText_${id}`);
-            const correctSelect = document.getElementById(`editCorrect_${id}`);
-            const optionInputs = document.querySelectorAll(`#editOptionsContainer_${id} input`);
-            
-            if (!textInput || !correctSelect) return;
-            
-            const newText = textInput.value.trim();
-            const newCorrect = parseInt(correctSelect.value);
-            const options = [];
-            optionInputs.forEach(input => {
-                if (input.value.trim()) {
-                    options.push(input.value.trim());
-                }
-            });
-            
-            if (!newText) {
-                alert('الرجاء إدخال نص السؤال.');
-                return;
-            }
-            if (options.length < 2) {
-                alert('الرجاء إدخال خيارين على الأقل.');
-                return;
-            }
-            if (newCorrect >= options.length) {
-                alert('الإجابة الصحيحة غير صالحة.');
-                return;
-            }
-            
+        async function deleteSubmission(id) {
+            if (!confirm('هل أنت متأكد من حذف هذه النتيجة؟')) return;
             try {
-                const response = await fetch(`${API_URL}/api/questions/${id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ text: newText, options, correct: newCorrect })
-                });
-                if (response.status === 403 || response.status === 401) {
-                    logout();
-                    return;
-                }
-                editingId = null;
-                await loadQuestions();
-            } catch (error) {
-                alert('حدث خطأ في حفظ التعديل.');
-                console.error(error);
-            }
-        }
-
-        async function deleteQuestion(id) {
-            if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
-            try {
-                const response = await fetch(`${API_URL}/api/questions/${id}`, {
+                const response = await fetch(`${API_URL}/api/submissions/${id}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (response.status === 403 || response.status === 401) {
-                    logout();
-                    return;
-                }
-                await loadQuestions();
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                loadSubmissions();
             } catch (error) {
-                alert('حدث خطأ في حذف السؤال.');
+                alert('حدث خطأ في حذف النتيجة.');
                 console.error(error);
             }
         }
 
+        // ========== INIT ==========
+        loadGroups();
+        loadExams();
         loadSubmissions();
-        loadQuestions();
-
-        updateNewOptions();
+        populateFilterGroups();
+        populateGroupSelect();
     </script>
 </body>
 </html>
