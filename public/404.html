@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الصفحة غير موجودة - Quiz Mr. Medhat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(145deg, #f7f9fc 0%, #eef2f7 100%);
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 2.5rem;
+            box-shadow: 0 20px 40px -12px rgba(0, 20, 40, 0.35), 0 8px 24px -6px rgba(0, 0, 0, 0.08);
+            padding: 3rem 2.5rem;
+            text-align: center;
+        }
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0b1e33;
+            margin-bottom: 1.5rem;
+        }
+        .logo span {
+            color: #1d6f9c;
+        }
+        .error-code {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #1d6f9c;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        h1 {
+            font-size: 1.8rem;
+            color: #0b1e33;
+            margin-bottom: 0.5rem;
+        }
+        p {
+            color: #4a5a6a;
+            font-size: 1.05rem;
+            margin-bottom: 2rem;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            background: #1d6f9c;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #155a80;
+        }
+        .admin-link {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .admin-link a {
+            color: #7f8c8d;
+            text-decoration: none;
+        }
+        .admin-link a:hover {
+            text-decoration: underline;
+            color: #2c6f9c;
+        }
+        @media (max-width: 500px) {
+            .container {
+                padding: 2rem 1.5rem;
+            }
+            .error-code {
+                font-size: 4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">Quiz <span>Mr. Medhat</span></div>
+        <div class="error-code">404</div>
+        <h1>الصفحة غير موجودة</h1>
+        <p>عذراً، الصفحة التي تبحث عنها غير متوفرة. قد يكون الرابط غير صحيح أو تم حذف المجموعة.</p>
+        <a href="/login" class="btn">تسجيل الدخول للتحكم</a>
+        <div class="admin-link">
+            <a href="/dashboard">لوحة التحكم</a>
+        </div>
+    </div>
+</body>
+</html>
