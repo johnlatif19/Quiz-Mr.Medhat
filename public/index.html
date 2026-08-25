@@ -5,25 +5,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
     <title>Quiz Mr. Medhat</title>
     <style>
-        /* نفس الـ styles السابقة مع إضافة */
-        /* أضف هذه الإضافات للـ CSS */
-        .exam-header {
-            background: #eef3f9;
-            padding: 15px 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #f7f9fc 0%, #eef2f7 100%);
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .quiz-container {
+            max-width: 880px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 2.5rem;
+            box-shadow: 0 20px 40px -12px rgba(0, 20, 40, 0.35), 0 8px 24px -6px rgba(0, 0, 0, 0.08);
+            padding: 2.2rem 2.5rem;
+            transition: all 0.2s ease;
+        }
+
+        @media (max-width: 640px) {
+            .quiz-container {
+                padding: 1.5rem 1rem;
+                border-radius: 1.8rem;
+            }
+        }
+
+        /* Name Entry Screen */
+        #nameEntryScreen {
             text-align: center;
+            padding: 2rem 0;
         }
-        .exam-header .group-name {
-            font-size: 1.4rem;
-            font-weight: 600;
+
+        #nameEntryScreen .logo {
+            font-size: 2.2rem;
+            font-weight: 700;
             color: #0b1e33;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.3rem;
         }
-        .exam-header .exam-info {
+
+        #nameEntryScreen .logo span {
+            color: #1d6f9c;
+        }
+
+        #nameEntryScreen .sub-logo {
             color: #4a5a6a;
             font-size: 0.95rem;
-            margin-top: 4px;
+            margin-bottom: 2rem;
         }
+
+        #nameEntryScreen h1 {
+            font-size: 1.5rem;
+            color: #0b1e33;
+            margin-bottom: 0.5rem;
+        }
+
+        #nameEntryScreen p {
+            color: #4a5a6a;
+            margin-bottom: 2rem;
+            font-size: 1.05rem;
+        }
+
+        #nameEntryScreen input {
+            width: 100%;
+            max-width: 400px;
+            padding: 0.9rem 1.2rem;
+            border: 2px solid #dce4ec;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            transition: border-color 0.2s;
+        }
+
+        #nameEntryScreen input:focus {
+            outline: none;
+            border-color: #2a6f97;
+        }
+
+        #nameEntryScreen .btn-start {
+            margin-top: 1.5rem;
+            padding: 0.9rem 2.5rem;
+            background: #1d6f9c;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #nameEntryScreen .btn-start:hover {
+            background: #155a80;
+        }
+
+        #nameEntryScreen .btn-start:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-msg {
+            color: #c0392b;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
         .attempt-error {
             background: #fde8e8;
             color: #c0392b;
@@ -31,6 +125,393 @@
             border-radius: 8px;
             text-align: center;
             margin: 20px 0;
+            display: none;
+        }
+
+        /* Quiz Area */
+        .exam-header {
+            background: #eef3f9;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .exam-header .group-name {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #0b1e33;
+        }
+
+        .exam-header .exam-info {
+            color: #4a5a6a;
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+
+        .quiz-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            gap: 0.5rem 1rem;
+        }
+
+        .quiz-title {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #0b1e33;
+        }
+        .quiz-title span {
+            color: #1d6f9c;
+        }
+
+        .question-counter {
+            background: #eef3f9;
+            padding: 0.35rem 1rem;
+            border-radius: 40px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #1f3a5f;
+        }
+
+        .progress-bar-track {
+            width: 100%;
+            height: 8px;
+            background: #dce3ec;
+            border-radius: 20px;
+            margin: 0.9rem 0 1.6rem 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #2a6f97;
+            border-radius: 20px;
+            transition: width 0.25s ease;
+        }
+
+        .question-card {
+            margin-bottom: 1.8rem;
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            font-weight: 500;
+            line-height: 1.5;
+            color: #0b1e33;
+            margin-bottom: 1.2rem;
+            padding: 0.25rem 0;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+
+        .option-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            background: #f5f8fd;
+            border: 2px solid #e3eaf2;
+            border-radius: 18px;
+            padding: 0.9rem 1.5rem;
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: #1d2f44;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .option-btn:hover:not(.selected) {
+            background: #edf3fa;
+            border-color: #b8ccde;
+            transform: scale(1.005);
+        }
+
+        .option-btn .letter {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            background: #dce6f2;
+            border-radius: 40px;
+            font-weight: 600;
+            color: #1f3a5f;
+            transition: 0.1s;
+        }
+
+        .option-btn.selected {
+            background: #d3e3fc;
+            border-color: #1d6f9c;
+            box-shadow: 0 4px 10px -4px rgba(26, 95, 150, 0.2);
+        }
+
+        .option-btn.selected .letter {
+            background: #1d6f9c;
+            color: white;
+        }
+
+        .nav-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin: 1.8rem 0 0.5rem 0;
+            padding-top: 0.5rem;
+            border-top: 1px solid #dfe7f0;
+        }
+
+        .nav-group {
+            display: flex;
+            gap: 0.7rem;
+        }
+
+        .btn {
+            background: white;
+            border: 1.5px solid #cbd8e8;
+            padding: 0.6rem 1.4rem;
+            border-radius: 60px;
+            font-weight: 550;
+            font-size: 0.95rem;
+            color: #1f3a5f;
+            cursor: pointer;
+            transition: 0.15s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .btn-outline {
+            background: transparent;
+        }
+
+        .btn-outline:hover {
+            background: #eef3f9;
+            border-color: #a5bdd6;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(0.2);
+        }
+
+        .submit-btn {
+            background: #1f8b4c;
+            border-color: #1f8b4c;
+            color: white;
+            padding: 0.7rem 2rem;
+            font-weight: 600;
+        }
+
+        .submit-btn:hover {
+            background: #16733e;
+            border-color: #16733e;
+        }
+
+        .results-container {
+            display: none;
+            animation: fadeSlide 0.3s ease;
+        }
+
+        @keyframes fadeSlide {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .results-card {
+            background: #f2f7fe;
+            border-radius: 2rem;
+            padding: 1.8rem 2rem;
+            margin: 1rem 0 2rem 0;
+            border: 1px solid #dde6f2;
+        }
+
+        .score-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem 3rem;
+            align-items: baseline;
+        }
+
+        .score-big {
+            font-size: 2.6rem;
+            font-weight: 700;
+            color: #0b2a44;
+        }
+
+        .stat-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: white;
+            padding: 0.3rem 1.2rem;
+            border-radius: 40px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            font-weight: 500;
+        }
+
+        .stat-correct { color: #1f8b4c; }
+        .stat-wrong { color: #b13e3e; }
+        .stat-unanswered { color: #a07c3a; }
+
+        .review-list {
+            margin-top: 1.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            max-height: 380px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        .review-item {
+            background: white;
+            border-radius: 16px;
+            padding: 0.75rem 1.2rem;
+            border-left: 6px solid #b8c9de;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 0.5rem 1rem;
+        }
+
+        .review-item.correct {
+            border-left-color: #1f8b4c;
+            background: #f2faf5;
+        }
+
+        .review-item.wrong {
+            border-left-color: #b13e3e;
+            background: #fdf3f3;
+        }
+
+        .review-item.unanswered {
+            border-left-color: #b89c5a;
+            background: #fbf7ed;
+        }
+
+        .q-preview {
+            font-weight: 500;
+            min-width: 2.4rem;
+            color: #1a3452;
+        }
+
+        .answer-detail {
+            color: #1f3a5f;
+        }
+
+        .answer-detail .student-ans {
+            font-weight: 600;
+        }
+
+        .answer-detail .correct-ans {
+            font-weight: 600;
+            color: #1f6f3f;
+        }
+
+        .report-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1.8rem;
+        }
+
+        .btn-report {
+            background: #1f3a5f;
+            border-color: #1f3a5f;
+            color: white;
+            padding: 0.65rem 1.8rem;
+        }
+
+        .btn-report:hover {
+            background: #142b47;
+        }
+
+        .btn-restart {
+            background: #5e6f86;
+            border-color: #5e6f86;
+            color: white;
+        }
+
+        .btn-restart:hover {
+            background: #44566b;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .share-report-box {
+            background: #e6edf8;
+            border-radius: 20px;
+            padding: 1rem 1.5rem;
+            font-family: 'Menlo', 'Consolas', monospace;
+            white-space: pre-line;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            border: 1px solid #cbd8e8;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 500px) {
+            .nav-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .nav-group {
+                justify-content: center;
+            }
+            .btn {
+                justify-content: center;
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+            .question-text {
+                font-size: 1.1rem;
+            }
+            .option-btn {
+                padding: 0.7rem 1rem;
+                font-size: 0.95rem;
+            }
+            #nameEntryScreen .logo {
+                font-size: 1.6rem;
+            }
+        }
+
+        .admin-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .admin-link a {
+            color: #7f8c8d;
+            text-decoration: none;
+        }
+        .admin-link a:hover {
+            text-decoration: underline;
+            color: #2c6f9c;
+        }
+
+        .empty-quiz-msg {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #4a5a6a;
+        }
+        .empty-quiz-msg h2 {
+            color: #0b1e33;
+            margin-bottom: 0.5rem;
         }
     </style>
 </head>
@@ -44,8 +525,11 @@
         <p id="examSubtitle">الرجاء إدخال اسمك لبدء الاختبار</p>
         <input type="text" id="userNameInput" placeholder="أدخل اسمك" maxlength="50">
         <div class="error-msg" id="nameError">الرجاء إدخال اسمك</div>
+        <div class="attempt-error" id="attemptError"></div>
         <button class="btn-start" id="startQuizBtn">بدء الاختبار</button>
-        <div id="attemptError" style="display:none;" class="attempt-error"></div>
+        <div class="admin-link">
+            <a href="/login">تسجيل الدخول للتحكم</a>
+        </div>
     </div>
 
     <!-- Quiz Area -->
@@ -83,7 +567,9 @@
 
     <!-- Results -->
     <div id="resultsArea" class="results-container">
-        <div class="results-card" id="resultsContent"></div>
+        <div class="results-card" id="resultsContent">
+            <!-- dynamic -->
+        </div>
         <div class="report-actions">
             <button class="btn btn-report" id="shareReportBtn">عرض التقرير</button>
             <button class="btn btn-restart" id="restartBtn">إعادة الاختبار</button>
@@ -104,7 +590,6 @@
         let currentIndex = 0;
         let submitted = false;
         let examId = null;
-        let hasAttempted = false;
 
         const nameEntryScreen = document.getElementById('nameEntryScreen');
         const quizArea = document.getElementById('quizArea');
@@ -142,11 +627,10 @@
             try {
                 let url = `${API_URL}/api/questions`;
                 if (groupSlug) {
-                    // Get exam for this group
                     const examResponse = await fetch(`${API_URL}/api/exam/${groupSlug}`);
                     if (examResponse.status === 404) {
                         document.getElementById('examSubtitle').textContent = 'لا يوجد امتحان منشور لهذه المجموعة.';
-                        return;
+                        return [];
                     }
                     const examData = await examResponse.json();
                     if (examData.exam) {
@@ -158,7 +642,6 @@
                     }
                 }
                 
-                // Fallback - load all questions
                 const response = await fetch(`${API_URL}/api/questions`);
                 const data = await response.json();
                 questions = data;
@@ -167,16 +650,6 @@
                 console.error('Error loading questions:', error);
                 questions = [];
                 return questions;
-            }
-        }
-
-        async function checkAttempt() {
-            if (!groupSlug || !userName) return false;
-            try {
-                // We'll check on the server when submitting
-                return false;
-            } catch (error) {
-                return false;
             }
         }
 
@@ -286,7 +759,6 @@
 
                 if (response.status === 409) {
                     alert('لقد قمت بالفعل بتأدية هذا الاختبار. لا يمكنك إعادة المحاولة.');
-                    // Show results anyway
                     displayLocalResults();
                     return;
                 }
@@ -423,7 +895,6 @@
             }
         });
 
-        // Load questions on page load
         loadExamQuestions().then(() => {
             nameEntryScreen.style.display = 'block';
             quizArea.style.display = 'none';
