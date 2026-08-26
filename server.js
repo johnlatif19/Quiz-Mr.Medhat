@@ -16,15 +16,20 @@ const PORT = process.env.PORT || 3000;
 // ========== VALIDATION & SECURITY CHECKS ==========
 // في Vercel، المتغيرات البيئية متوفرة
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback_secret_123456789') {
-    console.error('❌ ERROR: JWT_SECRET must be set');
+    console.warn('⚠️  JWT_SECRET not set or using default - using fallback');
     // لا نوقف العملية في Vercel
-    if (process.env.NODE_ENV !== 'production') {
-        process.exit(1);
-    }
+}
+
+if (!process.env.ADMIN_PASSWORD_HASH) {
+    console.warn('⚠️  ADMIN_PASSWORD_HASH not set - admin login disabled');
+}
+
+if (!process.env.ADMIN_USERNAME) {
+    console.warn('⚠️  ADMIN_USERNAME not set, using default: admin');
 }
 
 // ========== MIDDLEWARE ==========
-// Security headers - الإصدار المطلوب للتقرير
+// Security headers
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -57,7 +62,7 @@ app.use(helmet({
     }
 }));
 
-// ========== CORS ==========
+// CORS
 const corsOptions = {
     origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://quiz-mr-medhat.vercel.app', 'http://localhost:3000'],
     optionsSuccessStatus: 200,
@@ -65,19 +70,37 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// ========== BODY PARSER ==========
+// Body Parser - تحديد حجم الـ payload
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 
-// ========== STATIC FILES ==========
-// في Vercel، المسار مختلف
+// التحقق من حجم الـ payload
+app.use((req, res, next) => {
+    const contentLength = parseInt(req.headers['content-length'] || '0');
+    if (contentLength > 1024 * 1024) { // 1MB
+        return res.status(413).json({ error: 'Payload too large (max 1MB)' });
+    }
+    next();
+});
+
+// التحقق من Content-Type
+app.use((req, res, next) => {
+    if (req.method === 'POST' || req.method === 'PUT') {
+        if (!req.is('application/json') && !req.is('multipart/form-data')) {
+            return res.status(415).json({ error: 'Content-Type must be application/json' });
+        }
+    }
+    next();
+});
+
+// Static Files
 const publicPath = path.join(__dirname, 'public');
 app.use(express.static(publicPath));
 
 // ========== RATE LIMITING ==========
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
+    windowMs: 15 * 60 * 1000, // 15 دقيقة
+    max: 100, // حد أقصى 100 طلب لكل IP
     message: { error: 'Too many requests, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -85,16 +108,16 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 5,
+    windowMs: 15 * 60 * 1000, // 15 دقيقة
+    max: 5, // 5 محاولات فقط
     message: { error: 'Too many login attempts, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
 const submitLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 10,
+    windowMs: 60 * 60 * 1000, // 1 ساعة
+    max: 10, // 10 محاولات فقط
     message: { error: 'Too many exam submissions, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -139,6 +162,7 @@ let nextId = 1;
 
 // ========== HELPER FUNCTIONS ==========
 
+// تنقية المدخلات
 function sanitizeString(str) {
     if (!str) return '';
     if (typeof str !== 'string') return '';
@@ -178,6 +202,7 @@ function sanitizeObject(obj) {
     return sanitized;
 }
 
+// Middleware
 function isAdmin(req, res, next) {
     if (req.user && req.user.role === 'admin') {
         next();
@@ -210,6 +235,7 @@ function authenticateToken(req, res, next) {
 
 // ========== DATABASE FUNCTIONS ==========
 
+// GROUPS
 async function getGroups() {
     if (firestoreAvailable && db) {
         try {
@@ -307,6 +333,7 @@ async function getGroupById(id) {
     return inMemoryData.groups.find(g => g.id == id);
 }
 
+// EXAMS
 async function getExams() {
     if (firestoreAvailable && db) {
         try {
@@ -443,6 +470,7 @@ async function updateExamGroup(id, groupId, groupSlug) {
     return false;
 }
 
+// QUESTIONS
 async function getQuestionsByExamId(examId) {
     if (firestoreAvailable && db) {
         try {
@@ -552,6 +580,7 @@ async function deleteSingleQuestion(id) {
     return false;
 }
 
+// SUBMISSIONS
 async function getSubmissions() {
     if (firestoreAvailable && db) {
         try {
@@ -632,6 +661,7 @@ async function checkStudentAttempt(groupSlug, studentName) {
     );
 }
 
+// CHEAT REPORTS
 async function saveCheatReport(report) {
     const sanitized = sanitizeObject(report);
     sanitized.timestamp = sanitized.timestamp || new Date().toISOString();
@@ -704,6 +734,7 @@ async function deleteCheatReport(id) {
 
 // ========== ROUTES ==========
 
+// LOGIN
 app.post('/api/login', loginLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -741,6 +772,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     }
 });
 
+// GROUPS
 app.get('/api/groups', authenticateToken, isAdmin, async (req, res) => {
     try {
         const groups = await getGroups();
@@ -790,6 +822,7 @@ app.delete('/api/groups/:id', authenticateToken, isAdmin, async (req, res) => {
     }
 });
 
+// CHECK GROUP
 app.get('/api/group/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -804,6 +837,7 @@ app.get('/api/group/:slug', async (req, res) => {
     }
 });
 
+// CHECK STUDENT ATTEMPT
 app.get('/api/check-attempt/:groupSlug/:studentName', async (req, res) => {
     try {
         const { groupSlug, studentName } = req.params;
@@ -819,6 +853,7 @@ app.get('/api/check-attempt/:groupSlug/:studentName', async (req, res) => {
     }
 });
 
+// EXAMS
 app.get('/api/exams', authenticateToken, isAdmin, async (req, res) => {
     try {
         const exams = await getExams();
@@ -939,6 +974,7 @@ app.delete('/api/exams/:id', authenticateToken, isAdmin, async (req, res) => {
     }
 });
 
+// EDIT EXAM QUESTIONS
 app.put('/api/exams/:id/questions', authenticateToken, isAdmin, async (req, res) => {
     try {
         const examId = req.params.id;
@@ -988,6 +1024,7 @@ app.put('/api/exams/:id/questions', authenticateToken, isAdmin, async (req, res)
     }
 });
 
+// DELETE SINGLE QUESTION
 app.delete('/api/questions/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
         const deleted = await deleteSingleQuestion(req.params.id);
@@ -997,6 +1034,7 @@ app.delete('/api/questions/:id', authenticateToken, isAdmin, async (req, res) =>
     }
 });
 
+// STUDENT EXAM
 app.get('/api/exam/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -1088,6 +1126,7 @@ app.post('/api/submit-exam', submitLimiter, async (req, res) => {
     }
 });
 
+// SUBMISSIONS (ADMIN)
 app.get('/api/submissions', authenticateToken, isAdmin, async (req, res) => {
     try {
         const submissions = await getSubmissions();
@@ -1106,6 +1145,7 @@ app.delete('/api/submissions/:id', authenticateToken, isAdmin, async (req, res) 
     }
 });
 
+// CHEAT REPORTS
 app.post('/api/cheat-report', async (req, res) => {
     try {
         const { studentName, groupSlug, eventType, details, timestamp } = req.body;
