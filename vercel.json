@@ -24,14 +24,6 @@
       "dest": "/public/dashboard.html"
     },
     {
-      "src": "/",
-      "dest": "/public/index.html"
-    },
-    {
-      "src": "/404",
-      "dest": "/public/404.html"
-    },
-    {
       "src": "/(.*)",
       "dest": "/server.js"
     }
