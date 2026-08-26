@@ -664,6 +664,7 @@
         let submitted = false;
         let examId = null;
         let hasAttempted = false;
+        const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
         // ====== عرض صفحة 404 ======
         function show404Page() {
@@ -812,12 +813,11 @@
             const q = questions[index];
             questionText.textContent = q.text;
             optionsContainer.innerHTML = '';
-            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
             q.options.forEach((opt, idx) => {
                 const btn = document.createElement('div');
                 btn.className = 'option-btn';
                 if (answers[index] === idx) btn.classList.add('selected');
-                btn.innerHTML = `<span class="letter">${letters[idx]}</span> ${opt}`;
+                btn.innerHTML = `<span class="letter">${LETTERS[idx]}</span> ${opt}`;
                 btn.dataset.index = idx;
                 btn.addEventListener('click', () => selectOption(index, idx));
                 optionsContainer.appendChild(btn);
@@ -929,10 +929,9 @@
             const performance = score >= 80 ? 'ممتاز' : score >= 60 ? 'جيد' : score >= 40 ? 'مقبول' : 'يحتاج تحسين';
 
             let reviewHtml = '';
-            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
             results.forEach((r, i) => {
-                const selectedLetter = r.selected !== null ? letters[r.selected] : '—';
-                const correctLetter = letters[r.correct];
+                const selectedLetter = r.selected !== null ? LETTERS[r.selected] : '—';
+                const correctLetter = LETTERS[r.correct];
                 const isCorrect = r.isCorrect;
                 const isWrong = r.selected !== null && !r.isCorrect;
                 const isUnanswered = r.selected === null;
@@ -982,8 +981,8 @@
             results.forEach((r, i) => {
                 if (r.selected !== null && !r.isCorrect) {
                     hasWrong = true;
-                    const selectedLetter = letters[r.selected];
-                    const correctLetter = letters[r.correct];
+                    const selectedLetter = LETTERS[r.selected];
+                    const correctLetter = LETTERS[r.correct];
                     reportLines.push(`Q${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
                 }
             });
@@ -1029,5 +1028,4 @@
         initPage();
     })();
 </script>
-</body>
-</html>
+</body
