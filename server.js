@@ -450,6 +450,17 @@ app.get('/api/group/:slug', async (req, res) => {
     }
 });
 
+// === Check if student has attempted exam ===
+app.get('/api/check-attempt/:groupSlug/:studentName', async (req, res) => {
+    try {
+        const { groupSlug, studentName } = req.params;
+        const hasAttempted = await checkStudentAttempt(groupSlug, studentName);
+        res.json({ hasAttempted });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // === Exams ===
 app.get('/api/exams', authenticateToken, async (req, res) => {
     try {
