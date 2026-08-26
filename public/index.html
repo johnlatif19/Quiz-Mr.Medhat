@@ -905,7 +905,7 @@
                 if (isCorrect) correct++;
                 return {
                     question: q.text,
-                    selected,
+                    selected: selected !== undefined ? selected : null,
                     correct: q.correct,
                     isCorrect,
                     options: q.options
@@ -924,17 +924,23 @@
         // ====== عرض النتائج ======
         function displayResults(result) {
             const { total, correct, score, results } = result;
-            const wrong = results ? results.filter(r => r.selected !== null && !r.isCorrect).length : 0;
-            const unanswered = results ? results.filter(r => r.selected === null).length : 0;
+            const wrong = results ? results.filter(r => r.selected !== null && r.selected !== undefined && !r.isCorrect).length : 0;
+            const unanswered = results ? results.filter(r => r.selected === null || r.selected === undefined).length : 0;
             const performance = score >= 80 ? 'ممتاز' : score >= 60 ? 'جيد' : score >= 40 ? 'مقبول' : 'يحتاج تحسين';
 
             let reviewHtml = '';
             results.forEach((r, i) => {
-                const selectedLetter = r.selected !== null ? LETTERS[r.selected] : '—';
-                const correctLetter = LETTERS[r.correct];
-                const isCorrect = r.isCorrect;
-                const isWrong = r.selected !== null && !r.isCorrect;
-                const isUnanswered = r.selected === null;
+                // التأكد من أن القيم موجودة قبل استخدامها
+                const selectedIndex = (r.selected !== null && r.selected !== undefined) ? r.selected : -1;
+                const correctIndex = (r.correct !== null && r.correct !== undefined) ? r.correct : 0;
+                
+                const selectedLetter = (selectedIndex >= 0 && selectedIndex < LETTERS.length) ? LETTERS[selectedIndex] : '—';
+                const correctLetter = (correctIndex >= 0 && correctIndex < LETTERS.length) ? LETTERS[correctIndex] : '—';
+                
+                const isCorrect = r.isCorrect === true;
+                const isWrong = r.selected !== null && r.selected !== undefined && !isCorrect;
+                const isUnanswered = r.selected === null || r.selected === undefined;
+                
                 let cls = 'review-item';
                 if (isCorrect) cls += ' correct';
                 else if (isWrong) cls += ' wrong';
@@ -979,10 +985,12 @@
             reportLines.push('— الإجابات الخاطئة —');
             let hasWrong = false;
             results.forEach((r, i) => {
-                if (r.selected !== null && !r.isCorrect) {
+                if (r.selected !== null && r.selected !== undefined && !r.isCorrect) {
                     hasWrong = true;
-                    const selectedLetter = LETTERS[r.selected];
-                    const correctLetter = LETTERS[r.correct];
+                    const selectedIndex = r.selected;
+                    const correctIndex = r.correct;
+                    const selectedLetter = (selectedIndex >= 0 && selectedIndex < LETTERS.length) ? LETTERS[selectedIndex] : '—';
+                    const correctLetter = (correctIndex >= 0 && correctIndex < LETTERS.length) ? LETTERS[correctIndex] : '—';
                     reportLines.push(`Q${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
                 }
             });
@@ -1028,4 +1036,5 @@
         initPage();
     })();
 </script>
-</body
+</body>
+</html>
