@@ -38,6 +38,71 @@
             }
         }
 
+        /* 404 Page Style */
+        .page-404 {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+        .page-404 .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0b1e33;
+            margin-bottom: 1.5rem;
+        }
+        .page-404 .logo span {
+            color: #1d6f9c;
+        }
+        .page-404 .error-code {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #1d6f9c;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        .page-404 h1 {
+            font-size: 1.8rem;
+            color: #0b1e33;
+            margin-bottom: 0.5rem;
+        }
+        .page-404 p {
+            color: #4a5a6a;
+            font-size: 1.05rem;
+            margin-bottom: 2rem;
+        }
+        .page-404 .btn-404 {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            background: #1d6f9c;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .page-404 .btn-404:hover {
+            background: #155a80;
+        }
+        .page-404 .admin-link {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .page-404 .admin-link a {
+            color: #7f8c8d;
+            text-decoration: none;
+        }
+        .page-404 .admin-link a:hover {
+            text-decoration: underline;
+            color: #2c6f9c;
+        }
+        @media (max-width: 500px) {
+            .page-404 .error-code {
+                font-size: 4rem;
+            }
+        }
+
         /* Name Entry Screen */
         #nameEntryScreen {
             text-align: center;
@@ -488,6 +553,9 @@
             #nameEntryScreen .logo {
                 font-size: 1.6rem;
             }
+            .page-404 .error-code {
+                font-size: 4rem;
+            }
         }
 
         .admin-link {
@@ -514,48 +582,8 @@
             margin-bottom: 0.5rem;
         }
 
-        /* 404 Page Style */
-        .page-404 {
-            text-align: center;
-            padding: 3rem 1rem;
-        }
-        .page-404 .error-code {
-            font-size: 6rem;
-            font-weight: 700;
-            color: #1d6f9c;
-            line-height: 1;
-            margin-bottom: 0.5rem;
-        }
-        .page-404 h1 {
-            font-size: 1.8rem;
-            color: #0b1e33;
-            margin-bottom: 0.5rem;
-        }
-        .page-404 p {
-            color: #4a5a6a;
-            font-size: 1.05rem;
-            margin-bottom: 2rem;
-        }
-        .page-404 .btn-404 {
-            display: inline-block;
-            padding: 0.8rem 2rem;
-            background: #1d6f9c;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .page-404 .btn-404:hover {
-            background: #155a80;
-        }
-        @media (max-width: 500px) {
-            .page-404 .error-code {
-                font-size: 4rem;
-            }
+        #page404 {
+            display: none;
         }
     </style>
 </head>
@@ -563,17 +591,15 @@
 <div class="quiz-container" id="app">
     
     <!-- ====== صفحة 404 ====== -->
-    <div id="page404" style="display: none;">
+    <div id="page404">
         <div class="page-404">
-            <div class="logo" style="font-size:2rem;font-weight:700;color:#0b1e33;margin-bottom:1.5rem;">
-                Quiz <span style="color:#1d6f9c;">Mr. Medhat</span>
-            </div>
+            <div class="logo">Quiz <span>Mr. Medhat</span></div>
             <div class="error-code">404</div>
             <h1>الصفحة غير موجودة</h1>
             <p>عذراً، الصفحة التي تبحث عنها غير متوفرة. قد يكون الرابط غير صحيح أو تم حذف المجموعة.</p>
             <a href="/login" class="btn-404">تسجيل الدخول للتحكم</a>
-            <div class="admin-link" style="margin-top:1.5rem;font-size:0.9rem;">
-                <a href="/dashboard" style="color:#7f8c8d;text-decoration:none;">لوحة التحكم</a>
+            <div class="admin-link">
+                <a href="/dashboard">لوحة التحكم</a>
             </div>
         </div>
     </div>
@@ -691,14 +717,44 @@
         document.getElementById('examTitle').textContent = `اختبار مجموعة ${groupSlug}`;
         document.getElementById('examSubtitle').textContent = `الرجاء إدخال اسمك لبدء اختبار ${groupSlug}`;
 
+        // ====== عرض صفحة 404 ======
+        function show404Page() {
+            document.getElementById('page404').style.display = 'block';
+            document.getElementById('nameEntryScreen').style.display = 'none';
+            document.getElementById('quizArea').style.display = 'none';
+            document.getElementById('resultsArea').style.display = 'none';
+        }
+
+        // ====== التحقق من وجود المجموعة ======
+        async function checkGroupExists(slug) {
+            try {
+                const response = await fetch(`${API_URL}/api/group/${slug}`);
+                if (response.status === 404) {
+                    return false;
+                }
+                return response.ok;
+            } catch (error) {
+                console.error('Error checking group:', error);
+                return false;
+            }
+        }
+
         // ====== تحميل أسئلة الامتحان ======
         async function loadExamQuestions() {
             try {
+                // أولاً: التحقق من وجود المجموعة
+                const groupExists = await checkGroupExists(groupSlug);
+                if (!groupExists) {
+                    show404Page();
+                    return [];
+                }
+
+                // إذا كانت المجموعة موجودة، نحاول جلب الامتحان
                 const examResponse = await fetch(`${API_URL}/api/exam/${groupSlug}`);
                 
                 if (examResponse.status === 404) {
-                    // المجموعة غير موجودة أو لا يوجد امتحان
-                    document.getElementById('examSubtitle').textContent = 'هذه المجموعة غير موجودة أو لا يوجد لها امتحان.';
+                    // المجموعة موجودة ولكن لا يوجد امتحان منشور
+                    document.getElementById('examSubtitle').textContent = 'لا يوجد امتحان منشور لهذه المجموعة.';
                     startBtn.disabled = true;
                     return [];
                 }
@@ -719,7 +775,6 @@
                     
                     return questions;
                 } else {
-                    // لا يوجد امتحان
                     document.getElementById('examSubtitle').textContent = 'لا يوجد امتحان منشور لهذه المجموعة.';
                     startBtn.disabled = true;
                     return [];
