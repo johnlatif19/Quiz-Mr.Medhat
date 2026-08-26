@@ -32,12 +32,13 @@ try {
         });
         db = admin.firestore();
         firestoreAvailable = true;
-        console.log('🔥 Firebase initialized successfully');
+        console.log('✅ Firebase initialized successfully');
     } else {
         console.warn('⚠️ FIREBASE_CONFIG not found. Using in-memory storage');
     }
 } catch (error) {
     console.error('❌ Firebase initialization error:', error.message);
+    console.warn('⚠️ Falling back to in-memory storage');
 }
 
 // ========== IN-MEMORY FALLBACK ==========
@@ -97,6 +98,21 @@ async function deleteGroup(id) {
         return true;
     }
     return false;
+}
+
+async function getGroupBySlug(slug) {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('groups').where('slug', '==', slug).limit(1).get();
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                return { id: doc.id, ...doc.data() };
+            }
+        } catch (error) {
+            console.error('Error fetching group by slug:', error);
+        }
+    }
+    return inMemoryData.groups.find(g => g.slug === slug);
 }
 
 // === Exams ===
@@ -166,6 +182,24 @@ async function getExamByGroupSlug(slug) {
     return inMemoryData.exams.find(e => e.groupSlug === slug && e.isPublished);
 }
 
+async function updateExamPublish(id, isPublished) {
+    if (firestoreAvailable && db) {
+        try {
+            await db.collection('exams').doc(id).update({ isPublished });
+            return true;
+        } catch (error) {
+            console.error('Error updating exam publish status:', error);
+            return false;
+        }
+    }
+    const exam = inMemoryData.exams.find(e => e.id == id);
+    if (exam) {
+        exam.isPublished = isPublished;
+        return true;
+    }
+    return false;
+}
+
 // === Questions ===
 async function getQuestionsByExamId(examId) {
     if (firestoreAvailable && db) {
@@ -188,6 +222,11 @@ async function saveQuestions(questions) {
     if (firestoreAvailable && db) {
         try {
             const batch = db.batch();
+            // First delete existing questions for this exam
+            const existing = await db.collection('questions').where('examId', '==', questions[0]?.examId).get();
+            existing.docs.forEach(doc => batch.delete(doc.ref));
+            
+            // Add new questions
             questions.forEach(q => {
                 const docRef = db.collection('questions').doc();
                 batch.set(docRef, q);
@@ -337,6 +376,13 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
         if (!name) return res.status(400).json({ error: 'Group name required' });
         
         const slug = name.toLowerCase().trim().replace(/\s+/g, '-');
+        
+        // Check if group already exists
+        const existing = await getGroupBySlug(slug);
+        if (existing) {
+            return res.status(400).json({ error: 'Group with this name already exists' });
+        }
+        
         const group = { name, slug, createdAt: new Date().toISOString() };
         const saved = await saveGroup(group);
         res.json(saved);
@@ -386,7 +432,6 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
 
         const savedExam = await saveExam(exam);
         if (savedExam) {
-            // Save questions with exam reference
             const examQuestions = questions.map((q, idx) => ({
                 ...q,
                 id: idx + 1,
@@ -405,13 +450,12 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
 app.put('/api/exams/:id/publish', authenticateToken, async (req, res) => {
     try {
         const id = req.params.id;
-        if (firestoreAvailable && db) {
-            await db.collection('exams').doc(id).update({ isPublished: true });
+        const updated = await updateExamPublish(id, true);
+        if (updated) {
+            res.json({ success: true });
         } else {
-            const exam = inMemoryData.exams.find(e => e.id == id);
-            if (exam) exam.isPublished = true;
+            res.status(404).json({ error: 'Exam not found' });
         }
-        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -431,10 +475,19 @@ app.delete('/api/exams/:id', authenticateToken, async (req, res) => {
 app.get('/api/exam/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
+        
+        // Check if group exists
+        const group = await getGroupBySlug(slug);
+        if (!group) {
+            return res.status(404).json({ error: 'Group not found' });
+        }
+        
+        // Check if exam exists and is published
         const exam = await getExamByGroupSlug(slug);
         if (!exam) {
             return res.status(404).json({ error: 'Exam not found or not published' });
         }
+        
         const questions = await getQuestionsByExamId(exam.id);
         res.json({ exam, questions });
     } catch (error) {
@@ -516,7 +569,29 @@ app.delete('/api/submissions/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// ========== FRONTEND ROUTES ==========
+
+// الصفحة الرئيسية - تظهر 404
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// صفحة المجموعة - تمرر الـ slug للـ frontend
+app.get('/:groupSlug', (req, res) => {
+    const slug = req.params.groupSlug;
+    
+    // استثناء المسارات الخاصة
+    const reservedPaths = ['login', 'dashboard', 'api', 'favicon.ico', 'robots.txt'];
+    if (reservedPaths.includes(slug) || slug.includes('.')) {
+        return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    }
+    
+    // تمرير الـ slug للـ frontend عن طريق إرسال index.html
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // ========== تشغيل السيرفر ==========
 app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.log(`📁 Firebase: ${firestoreAvailable ? '✅ Connected' : '❌ Not connected (using in-memory)'}`);
 });
