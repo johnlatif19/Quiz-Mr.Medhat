@@ -271,6 +271,25 @@
             margin: 3px;
         }
 
+        .editing-row input, .editing-row select {
+            padding: 4px 8px;
+            border: 2px solid #f39c12;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .editing-row input:focus, .editing-row select:focus {
+            outline: none;
+            border-color: #e67e22;
+        }
+        .options-edit-container input {
+            display: block;
+            width: 100%;
+            margin: 2px 0;
+            padding: 2px 6px;
+            border: 1px solid #dce4ec;
+            border-radius: 4px;
+        }
+
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: stretch; text-align: center; }
             .header .user-info { justify-content: center; }
@@ -286,7 +305,7 @@
         <div class="header">
             <h1>Quiz <span>Mr. Medhat</span> - لوحة التحكم</h1>
             <div class="user-info">
-                <span id="userDisplay">مرحباً،</span>
+                <span id="userDisplay">مرحباً، Mr.Medhat</span>
                 <button class="btn-logout" onclick="logout()">خروج</button>
             </div>
         </div>
@@ -386,6 +405,24 @@
         </div>
     </div>
 
+    <!-- Modal: Edit Exam -->
+    <div class="modal" id="editExamModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>تعديل الامتحان</h2>
+                <button class="modal-close" onclick="closeModal('editExamModal')">×</button>
+            </div>
+            <form id="editExamForm" onsubmit="updateExam(event)">
+                <input type="hidden" id="editExamId">
+                <div id="editQuestionsContainer"></div>
+                <div style="display:flex;gap:10px;margin-top:15px;">
+                    <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                    <button type="button" class="btn btn-warning" onclick="closeModal('editExamModal')">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: Student Answers -->
     <div class="modal" id="answersModal">
         <div class="modal-content">
@@ -406,7 +443,7 @@
             window.location.href = '/login';
         }
 
-        document.getElementById('userDisplay').textContent = `مرحباً، ${username}`;
+        document.getElementById('userDisplay').textContent = 'مرحباً، Mr.Medhat';
 
         // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -492,7 +529,6 @@
                 if (response.status === 401 || response.status === 403) { logout(); return; }
                 closeModal('addGroupModal');
                 loadGroups();
-                // Also update group select in exam form
                 populateGroupSelect();
             } catch (error) {
                 alert('حدث خطأ في إضافة المجموعة.');
@@ -534,7 +570,7 @@
                     <tbody>`;
                 data.forEach((exam, i) => {
                     const link = `${window.location.origin}/${exam.groupSlug}`;
-                    const status = exam.isPublished ? '✅ منشور' : '⏳ غير منشور';
+                    const status = exam.isPublished ? 'منشور' : 'غير منشور';
                     html += `<tr>
                         <td>${i + 1}</td>
                         <td>${exam.groupName || exam.groupSlug}</td>
@@ -542,6 +578,7 @@
                         <td>${status}</td>
                         <td><a href="${link}" target="_blank">/${exam.groupSlug}</a></td>
                         <td>
+                            <button class="btn btn-warning btn-sm" onclick="showEditExam('${exam.id}')">تعديل</button>
                             ${!exam.isPublished ? `<button class="btn btn-success btn-sm" onclick="publishExam('${exam.id}')">نشر</button>` : ''}
                             <button class="btn btn-danger btn-sm" onclick="deleteExam('${exam.id}')">حذف</button>
                         </td>
@@ -679,6 +716,197 @@
             }
         }
 
+        // ====== تعديل الامتحان ======
+        async function showEditExam(examId) {
+            try {
+                const response = await fetch(`${API_URL}/api/exams`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                const data = await response.json();
+                const exam = data.find(e => e.id === examId);
+                if (!exam) { alert('لم يتم العثور على الامتحان.'); return; }
+
+                document.getElementById('editExamId').value = examId;
+                const container = document.getElementById('editQuestionsContainer');
+
+                // جلب الأسئلة من API
+                const questionsResponse = await fetch(`${API_URL}/api/exam/${exam.groupSlug}`);
+                const questionsData = await questionsResponse.json();
+                const questions = questionsData.questions || [];
+
+                let html = `<div style="margin-bottom:15px;padding:10px;background:#f7f9fc;border-radius:8px;">
+                    <strong>المجموعة:</strong> ${exam.groupName || exam.groupSlug}
+                    <span style="margin-left:20px;"><strong>عدد الأسئلة:</strong> ${questions.length}</span>
+                </div>`;
+
+                if (questions.length === 0) {
+                    html += '<div class="empty-state">لا توجد أسئلة لهذا الامتحان.</div>';
+                } else {
+                    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+                    questions.forEach((q, idx) => {
+                        html += `
+                            <div class="question-item" style="border:2px solid #f39c12;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <div class="q-number">السؤال ${idx + 1}</div>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteQuestionFromExam('${examId}', '${q.id}')">حذف هذا السؤال</button>
+                                </div>
+                                <div class="form-group" style="margin-top:5px;">
+                                    <input type="text" id="edit_q_text_${idx}" value="${q.text.replace(/"/g, '&quot;')}" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
+                                </div>
+                                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                                    ${q.options.map((opt, oi) => `
+                                        <div class="form-group" style="flex:1;min-width:80px;">
+                                            <label style="font-size:12px;">${letters[oi]}</label>
+                                            <input type="text" id="edit_q_opt_${idx}_${oi}" value="${opt.replace(/"/g, '&quot;')}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="form-group" style="margin-top:5px;">
+                                    <label style="font-size:12px;">الإجابة الصحيحة</label>
+                                    <select id="edit_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                        ${q.options.map((opt, oi) => `
+                                            <option value="${oi}" ${oi === q.correct ? 'selected' : ''}>${letters[oi]}</option>
+                                        `).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    // زر إضافة سؤال جديد
+                    html += `
+                        <button type="button" class="btn btn-success" onclick="addNewQuestionToEdit()" style="margin-top:10px;">+ إضافة سؤال جديد</button>
+                        <div id="newQuestionContainer"></div>
+                    `;
+                }
+
+                container.innerHTML = html;
+                window._editExamQuestions = questions;
+                window._editExamId = examId;
+                openModal('editExamModal');
+            } catch (error) {
+                alert('حدث خطأ في تحميل الامتحان للتعديل.');
+                console.error(error);
+            }
+        }
+
+        let newQuestionCounter = 0;
+
+        function addNewQuestionToEdit() {
+            const container = document.getElementById('newQuestionContainer');
+            const idx = window._editExamQuestions ? window._editExamQuestions.length + newQuestionCounter : newQuestionCounter;
+            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            container.innerHTML += `
+                <div class="question-item" style="border:2px solid #27ae60;margin-top:10px;" id="new_q_${idx}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div class="q-number">سؤال جديد ${idx + 1}</div>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="document.getElementById('new_q_${idx}').remove()">إزالة</button>
+                    </div>
+                    <div class="form-group" style="margin-top:5px;">
+                        <input type="text" id="new_q_text_${idx}" placeholder="نص السؤال" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
+                    </div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        ${['A','B','C','D'].map((letter, oi) => `
+                            <div class="form-group" style="flex:1;min-width:80px;">
+                                <label style="font-size:12px;">${letter}</label>
+                                <input type="text" id="new_q_opt_${idx}_${oi}" placeholder="${letter}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="form-group" style="margin-top:5px;">
+                        <label style="font-size:12px;">الإجابة الصحيحة</label>
+                        <select id="new_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            <option value="0">A</option>
+                            <option value="1">B</option>
+                            <option value="2">C</option>
+                            <option value="3">D</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            newQuestionCounter++;
+        }
+
+        async function deleteQuestionFromExam(examId, questionId) {
+            if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
+            try {
+                // حذف السؤال من قاعدة البيانات
+                const response = await fetch(`${API_URL}/api/questions/${questionId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                // إعادة تحميل التعديل
+                showEditExam(examId);
+            } catch (error) {
+                alert('حدث خطأ في حذف السؤال.');
+                console.error(error);
+            }
+        }
+
+        async function updateExam(e) {
+            e.preventDefault();
+            const examId = document.getElementById('editExamId').value;
+            const questions = [];
+            
+            // جمع الأسئلة الموجودة
+            const existingQuestions = window._editExamQuestions || [];
+            for (let i = 0; i < existingQuestions.length; i++) {
+                const text = document.getElementById(`edit_q_text_${i}`).value.trim();
+                const options = [];
+                for (let j = 0; j < existingQuestions[i].options.length; j++) {
+                    const opt = document.getElementById(`edit_q_opt_${i}_${j}`).value.trim();
+                    if (opt) options.push(opt);
+                }
+                const correct = parseInt(document.getElementById(`edit_q_correct_${i}`).value);
+                if (text && options.length >= 2) {
+                    questions.push({ id: existingQuestions[i].id, text, options, correct });
+                }
+            }
+
+            // جمع الأسئلة الجديدة
+            for (let i = 0; i < newQuestionCounter; i++) {
+                const textEl = document.getElementById(`new_q_text_${i}`);
+                if (!textEl) continue;
+                const text = textEl.value.trim();
+                const options = [];
+                for (let j = 0; j < 4; j++) {
+                    const opt = document.getElementById(`new_q_opt_${i}_${j}`);
+                    if (opt && opt.value.trim()) options.push(opt.value.trim());
+                }
+                const correct = parseInt(document.getElementById(`new_q_correct_${i}`).value);
+                if (text && options.length >= 2) {
+                    questions.push({ text, options, correct });
+                }
+            }
+
+            if (questions.length === 0) {
+                alert('لا توجد أسئلة صالحة. كل سؤال يحتاج إلى نص وخيارين على الأقل.');
+                return;
+            }
+
+            try {
+                // حفظ الأسئلة المعدلة
+                const response = await fetch(`${API_URL}/api/exams/${examId}/questions`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ questions })
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                closeModal('editExamModal');
+                newQuestionCounter = 0;
+                loadExams();
+                alert('تم تحديث الامتحان بنجاح!');
+            } catch (error) {
+                alert('حدث خطأ في تحديث الامتحان.');
+                console.error(error);
+            }
+        }
+
         async function publishExam(id) {
             if (!confirm('هل أنت متأكد من نشر هذا الامتحان؟')) return;
             try {
@@ -738,7 +966,6 @@
                 if (response.status === 401 || response.status === 403) { logout(); return; }
                 let data = await response.json();
                 
-                // Filter by group
                 if (filterGroup) {
                     data = data.filter(s => s.groupSlug === filterGroup);
                 }
@@ -749,18 +976,18 @@
                 }
 
                 let html = '';
-                data.forEach((sub, idx) => {
+                data.forEach((sub) => {
                     html += `
                         <div class="submission-item">
                             <div class="info">
                                 <span class="name">${sub.studentName || 'مجهول'}</span>
-                                <span class="group">📚 ${sub.groupSlug || 'بدون مجموعة'}</span>
+                                <span class="group">المجموعة: ${sub.groupSlug || 'بدون مجموعة'}</span>
                                 <span class="score">${sub.correct || 0} / ${sub.total || 0} (${sub.score || 0}%)</span>
                                 <span style="font-size: 13px; color: #7f8c8d;">${new Date(sub.timestamp).toLocaleString('ar-EG')}</span>
                             </div>
                             <div class="actions">
-                                <button class="btn btn-primary btn-sm" onclick="showStudentAnswers('${sub.id}')">📋 إجابات الطالب</button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteSubmission('${sub.id}')">🗑️ حذف</button>
+                                <button class="btn btn-primary btn-sm" onclick="showStudentAnswers('${sub.id}')">إجابات الطالب</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSubmission('${sub.id}')">حذف</button>
                             </div>
                         </div>
                     `;
@@ -804,7 +1031,7 @@
                                     إجابتك: ${userLetter}
                                 </span>
                                 ${!isCorrect ? `<span class="correct-ans">الصحيح: ${correctLetter}</span>` : ''}
-                                <span>${isCorrect ? '✅' : '❌'}</span>
+                                <span>${isCorrect ? 'صح' : 'خطأ'}</span>
                             </div>
                         `;
                     });
