@@ -924,22 +924,34 @@
         // ====== عرض النتائج ======
         function displayResults(result) {
             const { total, correct, score, results } = result;
-            const wrong = results ? results.filter(r => r.selected !== null && r.selected !== undefined && !r.isCorrect).length : 0;
-            const unanswered = results ? results.filter(r => r.selected === null || r.selected === undefined).length : 0;
+            
+            // حساب الإحصائيات
+            let wrong = 0;
+            let unanswered = 0;
+            
+            results.forEach(r => {
+                const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
+                if (userAns < 0) {
+                    unanswered++;
+                } else if (!r.isCorrect) {
+                    wrong++;
+                }
+            });
+            
             const performance = score >= 80 ? 'ممتاز' : score >= 60 ? 'جيد' : score >= 40 ? 'مقبول' : 'يحتاج تحسين';
 
             let reviewHtml = '';
             results.forEach((r, i) => {
-                // التأكد من أن القيم موجودة قبل استخدامها
-                const selectedIndex = (r.selected !== null && r.selected !== undefined) ? r.selected : -1;
-                const correctIndex = (r.correct !== null && r.correct !== undefined) ? r.correct : 0;
+                // استخدام userAnswer بدلاً من selected
+                const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
+                const correctIndex = (r.correctAnswer !== null && r.correctAnswer !== undefined) ? r.correctAnswer : 0;
                 
-                const selectedLetter = (selectedIndex >= 0 && selectedIndex < LETTERS.length) ? LETTERS[selectedIndex] : '—';
+                const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
                 const correctLetter = (correctIndex >= 0 && correctIndex < LETTERS.length) ? LETTERS[correctIndex] : '—';
                 
                 const isCorrect = r.isCorrect === true;
-                const isWrong = r.selected !== null && r.selected !== undefined && !isCorrect;
-                const isUnanswered = r.selected === null || r.selected === undefined;
+                const isWrong = userAns >= 0 && !isCorrect;
+                const isUnanswered = userAns < 0;
                 
                 let cls = 'review-item';
                 if (isCorrect) cls += ' correct';
@@ -985,12 +997,11 @@
             reportLines.push('— الإجابات الخاطئة —');
             let hasWrong = false;
             results.forEach((r, i) => {
-                if (r.selected !== null && r.selected !== undefined && !r.isCorrect) {
+                const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
+                if (userAns >= 0 && !r.isCorrect) {
                     hasWrong = true;
-                    const selectedIndex = r.selected;
-                    const correctIndex = r.correct;
-                    const selectedLetter = (selectedIndex >= 0 && selectedIndex < LETTERS.length) ? LETTERS[selectedIndex] : '—';
-                    const correctLetter = (correctIndex >= 0 && correctIndex < LETTERS.length) ? LETTERS[correctIndex] : '—';
+                    const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
+                    const correctLetter = (r.correctAnswer >= 0 && r.correctAnswer < LETTERS.length) ? LETTERS[r.correctAnswer] : '—';
                     reportLines.push(`Q${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
                 }
             });
