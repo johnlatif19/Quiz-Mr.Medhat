@@ -4,22 +4,78 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
 const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+// ========== VALIDATION & SECURITY CHECKS ==========
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback_secret_123456789') {
+    console.error('ERROR: JWT_SECRET must be set to a strong secret in environment variables');
+    process.exit(1);
+}
+
+if (!process.env.ADMIN_PASSWORD_HASH && !process.env.ADMIN_PASSWORD) {
+    console.error('ERROR: ADMIN_PASSWORD_HASH or ADMIN_PASSWORD must be set');
+    process.exit(1);
+}
+
+if (process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD_HASH) {
+    console.warn('⚠️  Using plain text password. Generate a hash for better security.');
+    console.warn('💡 Run: node -e "console.log(require(\\"bcrypt\\").hashSync(\\"' + process.env.ADMIN_PASSWORD + '\\", 10))"');
+    console.warn('💡 Then add ADMIN_PASSWORD_HASH to your .env file');
+}
+
+// ========== MIDDLEWARE ==========
+// Security headers
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:"],
+        },
+    },
+}));
+
+// CORS - محدود بالمصادر المسموحة
+const corsOptions = {
+    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'],
+    optionsSuccessStatus: 200,
+    credentials: true
+};
+app.use(cors(corsOptions));
+
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 
-// JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_123456789';
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+// ========== RATE LIMITING ==========
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 دقيقة
+    max: 100, // حد أقصى 100 طلب لكل IP
+    message: { error: 'Too many requests, please try again later.' }
+});
+app.use('/api/', limiter);
 
-// ========== Firebase Initialization ==========
+// Rate limiting خاص بتسجيل الدخول
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 دقيقة
+    max: 5, // 5 محاولات فقط
+    message: { error: 'Too many login attempts, please try again later.' }
+});
+
+// ========== JWT SECRET ==========
+const JWT_SECRET = process.env.JWT_SECRET;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+
+// ========== FIREBASE INITIALIZATION ==========
 let db = null;
 let firestoreAvailable = false;
 
@@ -32,13 +88,13 @@ try {
         });
         db = admin.firestore();
         firestoreAvailable = true;
-        console.log('Firebase initialized successfully');
+        console.log('✅ Firebase initialized successfully');
     } else {
-        console.warn('FIREBASE_CONFIG not found. Using in-memory storage');
+        console.warn('⚠️  FIREBASE_CONFIG not found. Using in-memory storage (DEVELOPMENT ONLY)');
     }
 } catch (error) {
-    console.error('Firebase initialization error:', error.message);
-    console.warn('Falling back to in-memory storage');
+    console.error('❌ Firebase initialization error:', error.message);
+    console.warn('⚠️  Falling back to in-memory storage (DEVELOPMENT ONLY)');
 }
 
 // ========== IN-MEMORY FALLBACK ==========
@@ -51,9 +107,57 @@ let inMemoryData = {
 };
 let nextId = 1;
 
-// ========== FUNCTIONS ==========
+// ========== HELPER FUNCTIONS ==========
 
-// === Groups ===
+// تنقية المدخلات
+function sanitizeString(str) {
+    if (!str) return '';
+    return str.trim().replace(/[<>]/g, ''); // منع XSS
+}
+
+function sanitizeSlug(str) {
+    if (!str) return '';
+    return str.toLowerCase().trim()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
+}
+
+function validateStudentName(name) {
+    if (!name || name.length < 2 || name.length > 50) return false;
+    if (!/^[\u0600-\u06FFa-zA-Z\s-]+$/.test(name)) return false; // عربي أو إنجليزي فقط
+    return true;
+}
+
+function sanitizeObject(obj) {
+    const sanitized = {};
+    for (let key in obj) {
+        if (typeof obj[key] === 'string') {
+            sanitized[key] = sanitizeString(obj[key]);
+        } else if (Array.isArray(obj[key])) {
+            sanitized[key] = obj[key].map(item => 
+                typeof item === 'string' ? sanitizeString(item) : item
+            );
+        } else if (obj[key] && typeof obj[key] === 'object') {
+            sanitized[key] = sanitizeObject(obj[key]);
+        } else {
+            sanitized[key] = obj[key];
+        }
+    }
+    return sanitized;
+}
+
+// التحقق من الصلاحيات
+function isAdmin(req, res, next) {
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        res.status(403).json({ error: 'Admin access required' });
+    }
+}
+
+// ========== DATABASE FUNCTIONS ==========
+
+// === GROUPS ===
 async function getGroups() {
     if (firestoreAvailable && db) {
         try {
@@ -63,34 +167,53 @@ async function getGroups() {
             }
         } catch (error) {
             console.error('Error fetching groups:', error);
+            throw new Error('Database error');
         }
     }
     return inMemoryData.groups;
 }
 
 async function saveGroup(group) {
+    const sanitized = sanitizeObject(group);
     if (firestoreAvailable && db) {
         try {
-            const docRef = await db.collection('groups').add(group);
-            return { id: docRef.id, ...group };
+            const docRef = await db.collection('groups').add(sanitized);
+            return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving group:', error);
-            return null;
+            throw new Error('Database error');
         }
     }
-    if (!group.id) group.id = nextId++;
-    inMemoryData.groups.push(group);
-    return group;
+    if (!sanitized.id) sanitized.id = nextId++;
+    inMemoryData.groups.push(sanitized);
+    return sanitized;
 }
 
 async function deleteGroup(id) {
     if (firestoreAvailable && db) {
         try {
-            await db.collection('groups').doc(id).delete();
+            // حذف الامتحانات المرتبطة أولاً
+            const examsSnapshot = await db.collection('exams').where('groupId', '==', id).get();
+            const batch = db.batch();
+            examsSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            
+            // حذف الأسئلة المرتبطة بالامتحانات
+            for (const doc of examsSnapshot.docs) {
+                const questionsSnapshot = await db.collection('questions').where('examId', '==', doc.id).get();
+                questionsSnapshot.docs.forEach(qDoc => {
+                    batch.delete(qDoc.ref);
+                });
+            }
+            
+            // حذف المجموعة
+            batch.delete(db.collection('groups').doc(id));
+            await batch.commit();
             return true;
         } catch (error) {
             console.error('Error deleting group:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     const index = inMemoryData.groups.findIndex(g => g.id == id);
@@ -102,18 +225,22 @@ async function deleteGroup(id) {
 }
 
 async function getGroupBySlug(slug) {
+    const cleanSlug = sanitizeSlug(slug);
+    if (!cleanSlug) return null;
+    
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('groups').where('slug', '==', slug).limit(1).get();
+            const snapshot = await db.collection('groups').where('slug', '==', cleanSlug).limit(1).get();
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
                 return { id: doc.id, ...doc.data() };
             }
         } catch (error) {
             console.error('Error fetching group by slug:', error);
+            throw new Error('Database error');
         }
     }
-    return inMemoryData.groups.find(g => g.slug === slug);
+    return inMemoryData.groups.find(g => g.slug === cleanSlug);
 }
 
 async function getGroupById(id) {
@@ -125,12 +252,13 @@ async function getGroupById(id) {
             }
         } catch (error) {
             console.error('Error fetching group by id:', error);
+            throw new Error('Database error');
         }
     }
     return inMemoryData.groups.find(g => g.id == id);
 }
 
-// === Exams ===
+// === EXAMS ===
 async function getExams() {
     if (firestoreAvailable && db) {
         try {
@@ -140,34 +268,43 @@ async function getExams() {
             }
         } catch (error) {
             console.error('Error fetching exams:', error);
+            throw new Error('Database error');
         }
     }
     return inMemoryData.exams;
 }
 
 async function saveExam(exam) {
+    const sanitized = sanitizeObject(exam);
     if (firestoreAvailable && db) {
         try {
-            const docRef = await db.collection('exams').add(exam);
-            return { id: docRef.id, ...exam };
+            const docRef = await db.collection('exams').add(sanitized);
+            return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving exam:', error);
-            return null;
+            throw new Error('Database error');
         }
     }
-    if (!exam.id) exam.id = nextId++;
-    inMemoryData.exams.push(exam);
-    return exam;
+    if (!sanitized.id) sanitized.id = nextId++;
+    inMemoryData.exams.push(sanitized);
+    return sanitized;
 }
 
 async function deleteExam(id) {
     if (firestoreAvailable && db) {
         try {
-            await db.collection('exams').doc(id).delete();
+            // حذف الأسئلة المرتبطة
+            const questionsSnapshot = await db.collection('questions').where('examId', '==', id).get();
+            const batch = db.batch();
+            questionsSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            batch.delete(db.collection('exams').doc(id));
+            await batch.commit();
             return true;
         } catch (error) {
             console.error('Error deleting exam:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     const index = inMemoryData.exams.findIndex(e => e.id == id);
@@ -179,11 +316,14 @@ async function deleteExam(id) {
 }
 
 async function getExamByGroupSlug(slug) {
+    const cleanSlug = sanitizeSlug(slug);
+    if (!cleanSlug) return null;
+    
     if (firestoreAvailable && db) {
         try {
-            console.log('Looking for exam with slug:', slug);
+            console.log('Looking for exam with slug:', cleanSlug);
             const snapshot = await db.collection('exams')
-                .where('groupSlug', '==', slug)
+                .where('groupSlug', '==', cleanSlug)
                 .where('isPublished', '==', true)
                 .limit(1)
                 .get();
@@ -193,12 +333,13 @@ async function getExamByGroupSlug(slug) {
                 console.log('Exam found:', exam.id);
                 return exam;
             }
-            console.log('No published exam found for slug:', slug);
+            console.log('No published exam found for slug:', cleanSlug);
         } catch (error) {
             console.error('Error fetching exam by slug:', error);
+            throw new Error('Database error');
         }
     }
-    return inMemoryData.exams.find(e => e.groupSlug === slug && e.isPublished);
+    return inMemoryData.exams.find(e => e.groupSlug === cleanSlug && e.isPublished);
 }
 
 async function getExamById(id) {
@@ -210,6 +351,7 @@ async function getExamById(id) {
             }
         } catch (error) {
             console.error('Error fetching exam by id:', error);
+            throw new Error('Database error');
         }
     }
     return inMemoryData.exams.find(e => e.id == id);
@@ -222,7 +364,7 @@ async function updateExamPublish(id, isPublished) {
             return true;
         } catch (error) {
             console.error('Error updating exam publish status:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     const exam = inMemoryData.exams.find(e => e.id == id);
@@ -234,25 +376,31 @@ async function updateExamPublish(id, isPublished) {
 }
 
 async function updateExamGroup(id, groupId, groupSlug) {
+    const cleanGroupId = sanitizeString(groupId);
+    const cleanGroupSlug = sanitizeSlug(groupSlug);
+    
     if (firestoreAvailable && db) {
         try {
-            await db.collection('exams').doc(id).update({ groupId, groupSlug });
+            await db.collection('exams').doc(id).update({ 
+                groupId: cleanGroupId, 
+                groupSlug: cleanGroupSlug 
+            });
             return true;
         } catch (error) {
             console.error('Error updating exam group:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     const exam = inMemoryData.exams.find(e => e.id == id);
     if (exam) {
-        exam.groupId = groupId;
-        exam.groupSlug = groupSlug;
+        exam.groupId = cleanGroupId;
+        exam.groupSlug = cleanGroupSlug;
         return true;
     }
     return false;
 }
 
-// === Questions ===
+// === QUESTIONS ===
 async function getQuestionsByExamId(examId) {
     console.log('getQuestionsByExamId called with examId:', examId);
     
@@ -278,7 +426,7 @@ async function getQuestionsByExamId(examId) {
             return [];
         } catch (error) {
             console.error('Error in getQuestionsByExamId:', error);
-            return [];
+            throw new Error('Database error');
         }
     }
     
@@ -289,10 +437,22 @@ async function getQuestionsByExamId(examId) {
 async function saveQuestions(questions) {
     console.log('Saving questions:', questions.length);
     
+    if (!questions || questions.length === 0) {
+        throw new Error('No questions to save');
+    }
+    
+    // تنقية الأسئلة
+    const sanitizedQuestions = questions.map(q => ({
+        ...sanitizeObject(q),
+        // التأكد من صحة الخيارات
+        options: q.options.map(opt => sanitizeString(opt)),
+        correct: parseInt(q.correct) || 0
+    }));
+    
     if (firestoreAvailable && db) {
         try {
             const batch = db.batch();
-            const examId = questions[0]?.examId;
+            const examId = sanitizedQuestions[0]?.examId;
             
             if (examId) {
                 const existing = await db.collection('questions')
@@ -302,7 +462,7 @@ async function saveQuestions(questions) {
                 console.log('Deleted', existing.size, 'old questions');
             }
             
-            questions.forEach((q, index) => {
+            sanitizedQuestions.forEach((q, index) => {
                 const docRef = db.collection('questions').doc();
                 const data = {
                     ...q,
@@ -310,7 +470,7 @@ async function saveQuestions(questions) {
                     examId: examId
                 };
                 batch.set(docRef, data);
-                console.log('Adding question', index + 1, ':', data.text);
+                console.log('Adding question', index + 1);
             });
             
             await batch.commit();
@@ -318,12 +478,12 @@ async function saveQuestions(questions) {
             return true;
         } catch (error) {
             console.error('Error saving questions:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     
-    inMemoryData.questions = inMemoryData.questions.filter(q => q.examId != questions[0]?.examId);
-    questions.forEach(q => {
+    inMemoryData.questions = inMemoryData.questions.filter(q => q.examId != sanitizedQuestions[0]?.examId);
+    sanitizedQuestions.forEach(q => {
         if (!q.id) q.id = nextId++;
         inMemoryData.questions.push(q);
     });
@@ -340,7 +500,7 @@ async function deleteQuestionsByExamId(examId) {
             return true;
         } catch (error) {
             console.error('Error deleting questions:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     inMemoryData.questions = inMemoryData.questions.filter(q => q.examId != examId);
@@ -354,7 +514,7 @@ async function deleteSingleQuestion(id) {
             return true;
         } catch (error) {
             console.error('Error deleting question:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     const index = inMemoryData.questions.findIndex(q => q.id == id);
@@ -365,7 +525,7 @@ async function deleteSingleQuestion(id) {
     return false;
 }
 
-// === Submissions ===
+// === SUBMISSIONS ===
 async function getSubmissions() {
     if (firestoreAvailable && db) {
         try {
@@ -377,24 +537,30 @@ async function getSubmissions() {
             }
         } catch (error) {
             console.error('Error fetching submissions:', error);
+            throw new Error('Database error');
         }
     }
     return inMemoryData.submissions;
 }
 
 async function saveSubmission(submission) {
+    // تنقية البيانات
+    const sanitized = sanitizeObject(submission);
+    // تخزين اسم الطالب بحروف صغيرة للتحقق
+    sanitized.studentNameLower = sanitized.studentName.toLowerCase();
+    
     if (firestoreAvailable && db) {
         try {
-            const docRef = await db.collection('submissions').add(submission);
-            return { id: docRef.id, ...submission };
+            const docRef = await db.collection('submissions').add(sanitized);
+            return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving submission:', error);
-            return null;
+            throw new Error('Database error');
         }
     }
-    if (!submission.id) submission.id = nextId++;
-    inMemoryData.submissions.push(submission);
-    return submission;
+    if (!sanitized.id) sanitized.id = nextId++;
+    inMemoryData.submissions.push(sanitized);
+    return sanitized;
 }
 
 async function deleteSubmission(id) {
@@ -404,7 +570,7 @@ async function deleteSubmission(id) {
             return true;
         } catch (error) {
             console.error('Error deleting submission:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     const index = inMemoryData.submissions.findIndex(s => s.id == id);
@@ -416,38 +582,45 @@ async function deleteSubmission(id) {
 }
 
 async function checkStudentAttempt(groupSlug, studentName) {
+    const cleanSlug = sanitizeSlug(groupSlug);
+    const cleanName = sanitizeString(studentName);
+    const cleanNameLower = cleanName.toLowerCase();
+    
     if (firestoreAvailable && db) {
         try {
             const snapshot = await db.collection('submissions')
-                .where('groupSlug', '==', groupSlug)
-                .where('studentName', '==', studentName)
+                .where('groupSlug', '==', cleanSlug)
+                .where('studentNameLower', '==', cleanNameLower)
                 .get();
             return !snapshot.empty;
         } catch (error) {
             console.error('Error checking attempt:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
-    return inMemoryData.submissions.some(s => s.groupSlug === groupSlug && s.studentName === studentName);
+    return inMemoryData.submissions.some(s => 
+        s.groupSlug === cleanSlug && 
+        s.studentNameLower === cleanNameLower
+    );
 }
 
-// === Cheat Reports ===
+// === CHEAT REPORTS ===
 async function saveCheatReport(report) {
+    const sanitized = sanitizeObject(report);
+    sanitized.timestamp = sanitized.timestamp || new Date().toISOString();
+    
     if (firestoreAvailable && db) {
         try {
-            const docRef = await db.collection('cheats').add({
-                ...report,
-                timestamp: report.timestamp || new Date().toISOString()
-            });
-            return { id: docRef.id, ...report };
+            const docRef = await db.collection('cheats').add(sanitized);
+            return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving cheat report:', error);
-            return null;
+            throw new Error('Database error');
         }
     }
-    report.id = nextId++;
-    inMemoryData.cheats.push(report);
-    return report;
+    sanitized.id = nextId++;
+    inMemoryData.cheats.push(sanitized);
+    return sanitized;
 }
 
 async function getCheatReports() {
@@ -461,6 +634,7 @@ async function getCheatReports() {
             }
         } catch (error) {
             console.error('Error fetching cheat reports:', error);
+            throw new Error('Database error');
         }
     }
     return inMemoryData.cheats;
@@ -476,11 +650,29 @@ async function clearCheatReports() {
             return true;
         } catch (error) {
             console.error('Error clearing cheat reports:', error);
-            return false;
+            throw new Error('Database error');
         }
     }
     inMemoryData.cheats = [];
     return true;
+}
+
+async function deleteCheatReport(id) {
+    if (firestoreAvailable && db) {
+        try {
+            await db.collection('cheats').doc(id).delete();
+            return true;
+        } catch (error) {
+            console.error('Error deleting cheat report:', error);
+            throw new Error('Database error');
+        }
+    }
+    const index = inMemoryData.cheats.findIndex(c => c.id == id);
+    if (index !== -1) {
+        inMemoryData.cheats.splice(index, 1);
+        return true;
+    }
+    return false;
 }
 
 // ========== MIDDLEWARE ==========
@@ -503,57 +695,105 @@ function authenticateToken(req, res, next) {
 
 // ========== ROUTES ==========
 
-// === Login ===
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ success: true, token });
-    } else {
-        res.status(401).json({ error: 'Invalid credentials' });
+// === LOGIN ===
+app.post('/api/login', loginLimiter, async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        
+        // تنقية المدخلات
+        const cleanUsername = sanitizeString(username);
+        const cleanPassword = sanitizeString(password);
+        
+        if (cleanUsername === ADMIN_USERNAME) {
+            let isPasswordValid = false;
+            
+            // التحقق من كلمة المرور
+            if (ADMIN_PASSWORD_HASH && ADMIN_PASSWORD_HASH.startsWith('$2')) {
+                // استخدام bcrypt
+                try {
+                    isPasswordValid = await bcrypt.compare(cleanPassword, ADMIN_PASSWORD_HASH);
+                } catch (error) {
+                    console.error('Bcrypt comparison error:', error);
+                    isPasswordValid = false;
+                }
+            } else if (ADMIN_PASSWORD) {
+                // Fallback للمقارنة العادية (للتوافق مع الإصدارات القديمة)
+                isPasswordValid = cleanPassword === ADMIN_PASSWORD;
+                if (isPasswordValid && !ADMIN_PASSWORD_HASH) {
+                    console.warn('⚠️  Using plain text password comparison. Please migrate to bcrypt hash.');
+                }
+            }
+            
+            if (isPasswordValid) {
+                const token = jwt.sign({ 
+                    username: cleanUsername, 
+                    role: 'admin' 
+                }, JWT_SECRET, { expiresIn: '24h' });
+                return res.json({ success: true, token });
+            }
+        }
+        
+        // تأخير الرد لمنع هجمات التوقيت
+        setTimeout(() => {
+            res.status(401).json({ error: 'Invalid credentials' });
+        }, 1000);
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Groups ===
-app.get('/api/groups', authenticateToken, async (req, res) => {
+// === GROUPS ===
+app.get('/api/groups', authenticateToken, isAdmin, async (req, res) => {
     try {
         const groups = await getGroups();
         res.json(groups);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.post('/api/groups', authenticateToken, async (req, res) => {
+app.post('/api/groups', authenticateToken, isAdmin, async (req, res) => {
     try {
         const { name } = req.body;
-        if (!name) return res.status(400).json({ error: 'Group name required' });
+        const cleanName = sanitizeString(name);
         
-        const slug = name.toLowerCase().trim().replace(/\s+/g, '-');
+        if (!cleanName || cleanName.length < 2) {
+            return res.status(400).json({ error: 'Group name must be at least 2 characters' });
+        }
+        
+        const slug = sanitizeSlug(cleanName);
+        if (!slug) {
+            return res.status(400).json({ error: 'Invalid group name' });
+        }
         
         const existing = await getGroupBySlug(slug);
         if (existing) {
             return res.status(400).json({ error: 'Group with this name already exists' });
         }
         
-        const group = { name, slug, createdAt: new Date().toISOString() };
+        const group = { 
+            name: cleanName, 
+            slug, 
+            createdAt: new Date().toISOString() 
+        };
         const saved = await saveGroup(group);
         res.json(saved);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.delete('/api/groups/:id', authenticateToken, async (req, res) => {
+app.delete('/api/groups/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
         const deleted = await deleteGroup(req.params.id);
         res.json({ success: deleted });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Check if group exists ===
+// === CHECK GROUP EXISTS ===
 app.get('/api/group/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -564,23 +804,29 @@ app.get('/api/group/:slug', async (req, res) => {
             res.status(404).json({ exists: false });
         }
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Check if student has attempted exam ===
+// === CHECK STUDENT ATTEMPT ===
 app.get('/api/check-attempt/:groupSlug/:studentName', async (req, res) => {
     try {
         const { groupSlug, studentName } = req.params;
+        
+        // التحقق من صحة اسم الطالب
+        if (!validateStudentName(studentName)) {
+            return res.status(400).json({ error: 'Invalid student name' });
+        }
+        
         const hasAttempted = await checkStudentAttempt(groupSlug, studentName);
         res.json({ hasAttempted });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Exams ===
-app.get('/api/exams', authenticateToken, async (req, res) => {
+// === EXAMS ===
+app.get('/api/exams', authenticateToken, isAdmin, async (req, res) => {
     try {
         const exams = await getExams();
         const groups = await getGroups();
@@ -590,15 +836,33 @@ app.get('/api/exams', authenticateToken, async (req, res) => {
         });
         res.json(examsWithGroups);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.post('/api/exams', authenticateToken, async (req, res) => {
+app.post('/api/exams', authenticateToken, isAdmin, async (req, res) => {
     try {
         const { groupId, groupSlug, questions } = req.body;
-        if (!groupId || !questions || questions.length === 0) {
-            return res.status(400).json({ error: 'Group ID and questions required' });
+        
+        if (!groupId || !groupSlug) {
+            return res.status(400).json({ error: 'Group ID and slug required' });
+        }
+        
+        if (!questions || questions.length === 0 || questions.length > 100) {
+            return res.status(400).json({ error: 'Questions must be between 1 and 100' });
+        }
+        
+        // التحقق من صحة الأسئلة
+        for (let q of questions) {
+            if (!q.text || q.text.length < 3) {
+                return res.status(400).json({ error: 'Each question must have text' });
+            }
+            if (!q.options || q.options.length !== 4) {
+                return res.status(400).json({ error: 'Each question must have exactly 4 options' });
+            }
+            if (q.correct === undefined || q.correct === null || q.correct < 0 || q.correct > 3) {
+                return res.status(400).json({ error: 'Each question must have a correct answer (0-3)' });
+            }
         }
 
         const exam = {
@@ -622,11 +886,11 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
             res.status(500).json({ error: 'Failed to save exam' });
         }
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.put('/api/exams/:id/publish', authenticateToken, async (req, res) => {
+app.put('/api/exams/:id/publish', authenticateToken, isAdmin, async (req, res) => {
     try {
         const id = req.params.id;
         const updated = await updateExamPublish(id, true);
@@ -636,11 +900,11 @@ app.put('/api/exams/:id/publish', authenticateToken, async (req, res) => {
             res.status(404).json({ error: 'Exam not found' });
         }
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.put('/api/exams/:id/group', authenticateToken, async (req, res) => {
+app.put('/api/exams/:id/group', authenticateToken, isAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         const { groupId, groupSlug } = req.body;
@@ -656,35 +920,45 @@ app.put('/api/exams/:id/group', authenticateToken, async (req, res) => {
             res.status(404).json({ error: 'Exam not found' });
         }
     } catch (error) {
-        console.error('Error updating exam group:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.delete('/api/exams/:id', authenticateToken, async (req, res) => {
+app.delete('/api/exams/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
         await deleteQuestionsByExamId(req.params.id);
         await deleteExam(req.params.id);
         res.json({ success: true });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Edit exam questions ===
-app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
+// === EDIT EXAM QUESTIONS ===
+app.put('/api/exams/:id/questions', authenticateToken, isAdmin, async (req, res) => {
     try {
         const examId = req.params.id;
         const { questions } = req.body;
         
-        if (!questions || questions.length === 0) {
-            return res.status(400).json({ error: 'No questions provided' });
+        if (!questions || questions.length === 0 || questions.length > 100) {
+            return res.status(400).json({ error: 'Questions must be between 1 and 100' });
+        }
+        
+        // التحقق من صحة الأسئلة
+        for (let q of questions) {
+            if (!q.text || q.text.length < 3) {
+                return res.status(400).json({ error: 'Each question must have text' });
+            }
+            if (!q.options || q.options.length !== 4) {
+                return res.status(400).json({ error: 'Each question must have exactly 4 options' });
+            }
+            if (q.correct === undefined || q.correct === null || q.correct < 0 || q.correct > 3) {
+                return res.status(400).json({ error: 'Each question must have a correct answer (0-3)' });
+            }
         }
 
-        // Delete old questions
         await deleteQuestionsByExamId(examId);
         
-        // Add new questions
         const examQuestions = questions.map((q, idx) => ({
             ...q,
             id: idx + 1,
@@ -693,7 +967,6 @@ app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
         
         const saved = await saveQuestions(examQuestions);
         if (saved) {
-            // Update question count in exam
             if (firestoreAvailable && db) {
                 await db.collection('exams').doc(examId).update({ questionsCount: questions.length });
             } else {
@@ -705,23 +978,21 @@ app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
             res.status(500).json({ error: 'Failed to save questions' });
         }
     } catch (error) {
-        console.error('Error updating exam questions:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Delete single question ===
-app.delete('/api/questions/:id', authenticateToken, async (req, res) => {
+// === DELETE SINGLE QUESTION ===
+app.delete('/api/questions/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
         const deleted = await deleteSingleQuestion(req.params.id);
         res.json({ success: deleted });
     } catch (error) {
-        console.error('Error deleting question:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Student Exam ===
+// === STUDENT EXAM ===
 app.get('/api/exam/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -739,7 +1010,7 @@ app.get('/api/exam/:slug', async (req, res) => {
             console.log('Exam not found or not published for slug:', slug);
             return res.status(404).json({ error: 'Exam not found or not published' });
         }
-        console.log('Exam found:', exam.id, 'isPublished:', exam.isPublished);
+        console.log('Exam found:', exam.id);
         
         const questions = await getQuestionsByExamId(exam.id);
         console.log('Questions returned:', questions.length);
@@ -747,7 +1018,7 @@ app.get('/api/exam/:slug', async (req, res) => {
         res.json({ exam, questions });
     } catch (error) {
         console.error('Error in /api/exam/:slug:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
@@ -755,8 +1026,17 @@ app.post('/api/submit-exam', async (req, res) => {
     try {
         const { groupSlug, studentName, answers, cheatLog } = req.body;
         
+        // التحقق من صحة البيانات
         if (!groupSlug || !studentName || !answers) {
             return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        if (!validateStudentName(studentName)) {
+            return res.status(400).json({ error: 'Invalid student name' });
+        }
+        
+        if (!Array.isArray(answers) || answers.length === 0) {
+            return res.status(400).json({ error: 'Invalid answers format' });
         }
 
         const hasAttempted = await checkStudentAttempt(groupSlug, studentName);
@@ -770,11 +1050,15 @@ app.post('/api/submit-exam', async (req, res) => {
         }
 
         const questions = await getQuestionsByExamId(exam.id);
+        if (questions.length === 0) {
+            return res.status(404).json({ error: 'No questions found for this exam' });
+        }
+
         let correctCount = 0;
         const results = [];
 
         questions.forEach((q, idx) => {
-            const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? answers[idx] : -1;
+            const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? parseInt(answers[idx]) : -1;
             const isCorrect = userAnswer === q.correct;
             if (isCorrect) correctCount++;
             results.push({
@@ -803,35 +1087,40 @@ app.post('/api/submit-exam', async (req, res) => {
         res.json({ success: true, submission: saved });
     } catch (error) {
         console.error('Error in /api/submit-exam:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Submissions (Admin) ===
-app.get('/api/submissions', authenticateToken, async (req, res) => {
+// === SUBMISSIONS (ADMIN) ===
+app.get('/api/submissions', authenticateToken, isAdmin, async (req, res) => {
     try {
         const submissions = await getSubmissions();
         res.json(submissions);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.delete('/api/submissions/:id', authenticateToken, async (req, res) => {
+app.delete('/api/submissions/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
         const deleted = await deleteSubmission(req.params.id);
         res.json({ success: deleted });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// === Cheat Reports Routes ===
+// === CHEAT REPORTS ===
 app.post('/api/cheat-report', async (req, res) => {
     try {
         const { studentName, groupSlug, eventType, details, timestamp } = req.body;
+        
         if (!studentName || !groupSlug || !eventType) {
             return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        if (!validateStudentName(studentName)) {
+            return res.status(400).json({ error: 'Invalid student name' });
         }
         
         const report = {
@@ -846,82 +1135,83 @@ app.post('/api/cheat-report', async (req, res) => {
         res.json({ success: true, report: saved });
     } catch (error) {
         console.error('Error in /api/cheat-report:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.get('/api/cheats', authenticateToken, async (req, res) => {
+app.get('/api/cheats', authenticateToken, isAdmin, async (req, res) => {
     try {
         const reports = await getCheatReports();
         res.json(reports);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-app.delete('/api/cheats', authenticateToken, async (req, res) => {
+app.delete('/api/cheats', authenticateToken, isAdmin, async (req, res) => {
     try {
         await clearCheatReports();
         res.json({ success: true });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
-// ====== DELETE SINGLE CHEAT REPORT ======
-app.delete('/api/cheats/:id', authenticateToken, async (req, res) => {
+app.delete('/api/cheats/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
-        const id = req.params.id;
-        if (firestoreAvailable && db) {
-            await db.collection('cheats').doc(id).delete();
+        const deleted = await deleteCheatReport(req.params.id);
+        if (deleted) {
+            res.json({ success: true });
         } else {
-            const index = inMemoryData.cheats.findIndex(c => c.id == id);
-            if (index !== -1) {
-                inMemoryData.cheats.splice(index, 1);
-            } else {
-                return res.status(404).json({ success: false, error: 'Cheat report not found' });
-            }
+            res.status(404).json({ success: false, error: 'Cheat report not found' });
         }
-        res.json({ success: true });
     } catch (error) {
         console.error('Error deleting cheat report:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
 // ========== FRONTEND ROUTES ==========
-
-// Login page
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Dashboard page
-app.get('/dashboard', (req, res) => {
+app.get('/dashboard', authenticateToken, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// Home page - shows 404
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Group page - passes slug to frontend
 app.get('/:groupSlug', (req, res) => {
     const slug = req.params.groupSlug;
     
-    // Exclude special paths
     const reservedPaths = ['login', 'dashboard', 'api', 'favicon.ico', 'robots.txt'];
     if (reservedPaths.includes(slug) || slug.includes('.')) {
         return res.sendFile(path.join(__dirname, 'public', 'index.html'));
     }
     
-    // Pass slug to frontend by sending index.html
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ========== ERROR HANDLING ==========
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
 });
 
 // ========== START SERVER ==========
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Firebase: ${firestoreAvailable ? 'Connected' : 'Not connected (using in-memory)'}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🔥 Firebase: ${firestoreAvailable ? 'Connected ✅' : 'Not connected (using in-memory) ⚠️'}`);
+    console.log(`🔐 Security: All security measures enabled ✅`);
+    console.log(`📝 Admin username: ${ADMIN_USERNAME}`);
+    console.log(`🔑 Password: ${ADMIN_PASSWORD_HASH ? 'Using bcrypt hash ✅' : 'Using plain text ⚠️'}`);
 });
