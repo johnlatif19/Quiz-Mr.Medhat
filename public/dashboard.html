@@ -241,7 +241,6 @@
             flex-wrap: wrap;
         }
 
-        /* Cheat alert */
         .cheat-alert {
             background: #fde8e8;
             border: 2px solid #e74c3c;
@@ -294,7 +293,6 @@
             margin: 3px;
         }
 
-        /* Full exam view in modal */
         .full-exam-question {
             background: #f7f9fc;
             border-radius: 8px;
@@ -332,7 +330,6 @@
             border-width: 3px;
         }
 
-        /* Live cheating alerts */
         .cheat-notification {
             background: #fff3cd;
             border: 1px solid #f39c12;
@@ -345,6 +342,9 @@
             color: #7f8c8d;
             font-size: 12px;
             margin-left: 10px;
+        }
+        .cheat-notification .cheat-actions {
+            margin-top: 5px;
         }
 
         @media (max-width: 768px) {
@@ -551,9 +551,7 @@
             document.getElementById(id).classList.add('active');
         }
 
-        // ========== WEBSOCKET / POLLING FOR REAL-TIME CHEATS ==========
-        let lastCheatId = 0;
-
+        // ========== CHEATS ==========
         async function loadCheats() {
             const container = document.getElementById('cheatsContainer');
             try {
@@ -563,7 +561,6 @@
                 if (response.status === 401 || response.status === 403) { logout(); return; }
                 const data = await response.json();
                 
-                // تحديث العدد في الهيدر
                 document.getElementById('cheatCount').textContent = `🚨 ${data.length}`;
                 
                 if (data.length === 0) {
@@ -572,10 +569,11 @@
                 }
 
                 let html = '';
-                data.slice().reverse().forEach((cheat, index) => {
+                data.slice().reverse().forEach((cheat) => {
                     const time = new Date(cheat.timestamp).toLocaleString('ar-EG');
+                    const cheatId = cheat.id || '';
                     html += `
-                        <div class="cheat-notification">
+                        <div class="cheat-notification" id="cheat-${cheatId}">
                             <strong>👤 ${cheat.studentName}</strong>
                             <span style="margin:0 10px;">|</span>
                             <span>📚 ${cheat.groupSlug}</span>
@@ -584,12 +582,30 @@
                             <span style="margin:0 10px;">|</span>
                             <span>${cheat.details}</span>
                             <span class="cheat-time">${time}</span>
+                            <div class="cheat-actions">
+                                <button class="btn btn-danger btn-sm" onclick="deleteCheat('${cheatId}')">🗑️ حذف</button>
+                            </div>
                         </div>
                     `;
                 });
                 container.innerHTML = html;
             } catch (error) {
                 container.innerHTML = '<div class="empty-state">حدث خطأ في تحميل محاولات الغش.</div>';
+                console.error(error);
+            }
+        }
+
+        async function deleteCheat(id) {
+            if (!confirm('هل أنت متأكد من حذف محاولة الغش هذه؟')) return;
+            try {
+                const response = await fetch(`${API_URL}/api/cheats/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                loadCheats();
+            } catch (error) {
+                alert('حدث خطأ في حذف محاولة الغش.');
                 console.error(error);
             }
         }
@@ -613,7 +629,6 @@
             if (document.getElementById('cheatsTab').classList.contains('active')) {
                 loadCheats();
             } else {
-                // تحديث العدد فقط
                 fetch(`${API_URL}/api/cheats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }).then(r => r.json()).then(data => {
@@ -871,7 +886,7 @@
             }
         }
 
-        // ====== تعديل الامتحان (مع إمكانية تغيير المجموعة) ======
+        // ====== تعديل الامتحان ======
         async function showEditExam(examId) {
             try {
                 const response = await fetch(`${API_URL}/api/exams`, {
@@ -884,10 +899,8 @@
 
                 document.getElementById('editExamId').value = examId;
                 
-                // تعبئة select المجموعات
                 await populateGroupSelects();
                 const editGroupSelect = document.getElementById('editExamGroupSelect');
-                // تحديد المجموعة الحالية
                 const groupsResponse = await fetch(`${API_URL}/api/groups`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -899,7 +912,6 @@
 
                 const container = document.getElementById('editQuestionsContainer');
 
-                // جلب الأسئلة
                 const questionsResponse = await fetch(`${API_URL}/api/exam/${exam.groupSlug}`);
                 const questionsData = await questionsResponse.json();
                 const questions = questionsData.questions || [];
@@ -1053,7 +1065,6 @@
             }
 
             try {
-                // تحديث المجموعة إذا تغيرت
                 if (newGroupId && newGroupId !== window._editExamGroupId) {
                     const groupsResponse = await fetch(`${API_URL}/api/groups`, {
                         headers: { 'Authorization': `Bearer ${token}` }
@@ -1173,7 +1184,7 @@
                             </div>
                             <div class="actions">
                                 <button class="btn btn-primary btn-sm" onclick="showStudentAnswers('${sub.id}')">📖 عرض الامتحان كامل</button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteSubmission('${sub.id}')">حذف</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSubmission('${sub.id}')">🗑️ حذف</button>
                             </div>
                             ${hasCheats ? `
                                 <div class="cheat-alert">
@@ -1191,7 +1202,7 @@
             }
         }
 
-        // ====== عرض إجابات الطالب (الامتحان كامل) ======
+        // ====== عرض إجابات الطالب ======
         async function showStudentAnswers(id) {
             try {
                 const response = await fetch(`${API_URL}/api/submissions`, {
