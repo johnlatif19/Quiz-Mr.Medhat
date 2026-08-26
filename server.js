@@ -868,6 +868,27 @@ app.delete('/api/cheats', authenticateToken, async (req, res) => {
     }
 });
 
+// ====== DELETE SINGLE CHEAT REPORT ======
+app.delete('/api/cheats/:id', authenticateToken, async (req, res) => {
+    try {
+        const id = req.params.id;
+        if (firestoreAvailable && db) {
+            await db.collection('cheats').doc(id).delete();
+        } else {
+            const index = inMemoryData.cheats.findIndex(c => c.id == id);
+            if (index !== -1) {
+                inMemoryData.cheats.splice(index, 1);
+            } else {
+                return res.status(404).json({ success: false, error: 'Cheat report not found' });
+            }
+        }
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting cheat report:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ========== FRONTEND ROUTES ==========
 
 // Login page
