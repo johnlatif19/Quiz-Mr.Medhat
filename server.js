@@ -14,19 +14,19 @@ const PORT = process.env.PORT || 3000;
 
 // ========== VALIDATION & SECURITY CHECKS ==========
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback_secret_123456789') {
-    console.error('ERROR: JWT_SECRET must be set to a strong secret in environment variables');
+    console.error('❌ ERROR: JWT_SECRET must be set to a strong secret in environment variables');
+    console.error('💡 Generate one using: node -e "console.log(require(\\"crypto\\").randomBytes(64).toString(\\"hex\\"))"');
     process.exit(1);
 }
 
-if (!process.env.ADMIN_PASSWORD_HASH && !process.env.ADMIN_PASSWORD) {
-    console.error('ERROR: ADMIN_PASSWORD_HASH or ADMIN_PASSWORD must be set');
+if (!process.env.ADMIN_PASSWORD_HASH) {
+    console.error('❌ ERROR: ADMIN_PASSWORD_HASH must be set in environment variables');
+    console.error('💡 Generate a hash using: node -e "console.log(require(\\"bcrypt\\").hashSync(\\"your_password\\", 10))"');
     process.exit(1);
 }
 
-if (process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD_HASH) {
-    console.warn('⚠️  Using plain text password. Generate a hash for better security.');
-    console.warn('💡 Run: node -e "console.log(require(\\"bcrypt\\").hashSync(\\"' + process.env.ADMIN_PASSWORD + '\\", 10))"');
-    console.warn('💡 Then add ADMIN_PASSWORD_HASH to your .env file');
+if (!process.env.ADMIN_USERNAME) {
+    console.warn('⚠️  ADMIN_USERNAME not set, using default: admin');
 }
 
 // ========== MIDDLEWARE ==========
@@ -72,7 +72,6 @@ const loginLimiter = rateLimit({
 // ========== JWT SECRET ==========
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
 
 // ========== FIREBASE INITIALIZATION ==========
@@ -707,20 +706,13 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         if (cleanUsername === ADMIN_USERNAME) {
             let isPasswordValid = false;
             
-            // التحقق من كلمة المرور
-            if (ADMIN_PASSWORD_HASH && ADMIN_PASSWORD_HASH.startsWith('$2')) {
-                // استخدام bcrypt
+            // استخدام bcrypt فقط
+            if (ADMIN_PASSWORD_HASH) {
                 try {
                     isPasswordValid = await bcrypt.compare(cleanPassword, ADMIN_PASSWORD_HASH);
                 } catch (error) {
                     console.error('Bcrypt comparison error:', error);
                     isPasswordValid = false;
-                }
-            } else if (ADMIN_PASSWORD) {
-                // Fallback للمقارنة العادية (للتوافق مع الإصدارات القديمة)
-                isPasswordValid = cleanPassword === ADMIN_PASSWORD;
-                if (isPasswordValid && !ADMIN_PASSWORD_HASH) {
-                    console.warn('⚠️  Using plain text password comparison. Please migrate to bcrypt hash.');
                 }
             }
             
@@ -1213,5 +1205,6 @@ app.listen(PORT, () => {
     console.log(`🔥 Firebase: ${firestoreAvailable ? 'Connected ✅' : 'Not connected (using in-memory) ⚠️'}`);
     console.log(`🔐 Security: All security measures enabled ✅`);
     console.log(`📝 Admin username: ${ADMIN_USERNAME}`);
-    console.log(`🔑 Password: ${ADMIN_PASSWORD_HASH ? 'Using bcrypt hash ✅' : 'Using plain text ⚠️'}`);
+    console.log(`🔑 Password: Using bcrypt hash ✅`);
+    console.log(`📊 Status: Ready to serve 🎯`);
 });
