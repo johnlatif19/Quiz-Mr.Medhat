@@ -474,16 +474,6 @@
             background: #142b47;
         }
 
-        .btn-restart {
-            background: #5e6f86;
-            border-color: #5e6f86;
-            color: white;
-        }
-
-        .btn-restart:hover {
-            background: #44566b;
-        }
-
         .hidden {
             display: none;
         }
@@ -500,6 +490,19 @@
             max-height: 300px;
             overflow-y: auto;
             margin: 1rem 0;
+        }
+
+        /* Anti-cheat warning */
+        .cheat-warning {
+            background: #fde8e8;
+            border: 2px solid #e74c3c;
+            color: #c0392b;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+            font-weight: 600;
         }
 
         @media (max-width: 500px) {
@@ -581,6 +584,7 @@
 
     <!-- ====== Quiz Area ====== -->
     <div id="quizArea">
+        <div class="cheat-warning" id="cheatWarning">⚠️ تم اكتشاف محاولة غش! سيتم إبلاغ المدرس.</div>
         <div class="exam-header">
             <div class="group-name" id="groupNameDisplay">Quiz Mr. Medhat</div>
             <div class="exam-info" id="examInfoDisplay"></div>
@@ -619,7 +623,7 @@
         </div>
         <div class="report-actions">
             <button class="btn btn-report" id="shareReportBtn">عرض التقرير</button>
-            <button class="btn btn-restart" id="restartBtn">إعادة الاختبار</button>
+            <!-- تم إزالة زر إعادة الاختبار -->
         </div>
         <div id="shareReportBox" class="share-report-box hidden"></div>
     </div>
@@ -648,13 +652,13 @@
         const questionCounter = document.getElementById('questionCounter');
         const resultsContent = document.getElementById('resultsContent');
         const shareReportBtn = document.getElementById('shareReportBtn');
-        const restartBtn = document.getElementById('restartBtn');
         const shareReportBox = document.getElementById('shareReportBox');
         const quizContent = document.getElementById('quizContent');
         const emptyQuizMessage = document.getElementById('emptyQuizMessage');
         const groupNameDisplay = document.getElementById('groupNameDisplay');
         const examInfoDisplay = document.getElementById('examInfoDisplay');
         const attemptError = document.getElementById('attemptError');
+        const cheatWarning = document.getElementById('cheatWarning');
 
         // ====== متغيرات ======
         let userName = '';
@@ -664,7 +668,112 @@
         let submitted = false;
         let examId = null;
         let hasAttempted = false;
+        let studentId = '';
         const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+        // ====== نظام مكافحة الغش ======
+        let cheatDetected = false;
+        let cheatLog = [];
+
+        function logCheatEvent(eventType, details) {
+            const timestamp = new Date().toISOString();
+            cheatLog.push({ eventType, details, timestamp });
+            
+            // إظهار تحذير للطالب
+            cheatWarning.style.display = 'block';
+            cheatWarning.textContent = '⚠️ تم اكتشاف محاولة غش! سيتم إبلاغ المدرس.';
+            
+            // إرسال التقرير فوراً إلى الداشبورد
+            sendCheatReport(eventType, details);
+        }
+
+        async function sendCheatReport(eventType, details) {
+            if (!userName || !groupSlug) return;
+            
+            try {
+                await fetch(`${API_URL}/api/cheat-report`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        studentName: userName,
+                        groupSlug: groupSlug,
+                        eventType: eventType,
+                        details: details,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+            } catch (error) {
+                console.error('Error sending cheat report:', error);
+            }
+        }
+
+        // منع النسخ
+        document.addEventListener('copy', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                logCheatEvent('copy', 'محاولة نسخ النص');
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // منع القص
+        document.addEventListener('cut', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                logCheatEvent('cut', 'محاولة قص النص');
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // منع النقر بزر الماوس الأيمن
+        document.addEventListener('contextmenu', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                logCheatEvent('right_click', 'محاولة فتح قائمة السياق');
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // منع اختصارات لوحة المفاتيح
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                // Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+U, Ctrl+S, F12
+                if ((e.ctrlKey && ['c', 'v', 'x', 'u', 's'].includes(e.key.toLowerCase())) || e.key === 'F12') {
+                    logCheatEvent('keyboard_shortcut', `محاولة استخدام اختصار: ${e.ctrlKey ? 'Ctrl+' : ''}${e.key}`);
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+
+        // كشف الخروج من الموقع
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                logCheatEvent('tab_switch', 'الخروج من علامة التبويب');
+            }
+        });
+
+        // كشف تغيير حجم النافذة (قد يدل على محاولة تصوير)
+        let windowSizeChangeCount = 0;
+        window.addEventListener('resize', function() {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                windowSizeChangeCount++;
+                if (windowSizeChangeCount > 5) {
+                    logCheatEvent('window_resize', 'تغيير متكرر لحجم النافذة');
+                    windowSizeChangeCount = 0;
+                }
+            }
+        });
+
+        // منع التحديد
+        document.addEventListener('selectstart', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                e.preventDefault();
+                return false;
+            }
+        });
 
         // ====== عرض صفحة 404 ======
         function show404Page() {
@@ -698,27 +807,22 @@
 
         // ====== التحقق من الصفحة الرئيسية ======
         async function initPage() {
-            // إذا كان المستخدم في الصفحة الرئيسية (بدون slug)
             if (!groupSlug || groupSlug === '') {
                 show404Page();
                 return;
             }
 
-            // التحقق من وجود المجموعة
             const groupExists = await checkGroupExists(groupSlug);
             if (!groupExists) {
                 show404Page();
                 return;
             }
 
-            // المجموعة موجودة - نعرض صفحة الاختبار
             showExamPage();
             
-            // تحديث عنوان الصفحة
             document.getElementById('examTitle').textContent = `اختبار مجموعة ${groupSlug}`;
             document.getElementById('examSubtitle').textContent = `الرجاء إدخال اسمك لبدء اختبار ${groupSlug}`;
             
-            // تحميل الأسئلة
             await loadExamQuestions();
         }
 
@@ -774,7 +878,6 @@
                 return;
             }
 
-            // التحقق من أن الطالب لم يختبر من قبل
             try {
                 const checkResponse = await fetch(`${API_URL}/api/check-attempt/${groupSlug}/${encodeURIComponent(userName)}`);
                 const checkData = await checkResponse.json();
@@ -787,14 +890,21 @@
                 console.error('Error checking attempt:', error);
             }
 
+            // إنشاء معرف فريد للطالب لتتبع محاولات الغش
+            studentId = `${userName}_${Date.now()}`;
+            
             hasAttempted = false;
             answers = new Array(questions.length).fill(null);
             currentIndex = 0;
             submitted = false;
+            cheatLog = [];
+            windowSizeChangeCount = 0;
+            
             nameEntryScreen.style.display = 'none';
             quizArea.style.display = 'block';
             resultsArea.style.display = 'none';
             attemptError.style.display = 'none';
+            cheatWarning.style.display = 'none';
             
             quizContent.style.display = 'block';
             emptyQuizMessage.style.display = 'none';
@@ -865,7 +975,8 @@
                 const payload = {
                     groupSlug: groupSlug,
                     studentName: userName,
-                    answers: answers
+                    answers: answers,
+                    cheatLog: cheatLog // إرسال سجل الغش مع الإجابة
                 };
 
                 const response = await fetch(`${API_URL}/api/submit-exam`, {
@@ -896,7 +1007,7 @@
             }
         }
 
-        // ====== عرض النتائج المحلية (في حالة الخطأ) ======
+        // ====== عرض النتائج المحلية ======
         function displayLocalResults() {
             let correct = 0;
             const results = questions.map((q, idx) => {
@@ -925,7 +1036,6 @@
         function displayResults(result) {
             const { total, correct, score, results } = result;
             
-            // حساب الإحصائيات
             let wrong = 0;
             let unanswered = 0;
             
@@ -942,7 +1052,6 @@
 
             let reviewHtml = '';
             results.forEach((r, i) => {
-                // استخدام userAnswer بدلاً من selected
                 const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
                 const correctIndex = (r.correctAnswer !== null && r.correctAnswer !== undefined) ? r.correctAnswer : 0;
                 
@@ -979,6 +1088,7 @@
                 <div style="margin: 0.8rem 0 0.2rem 0; font-weight: 500; font-size: 1.1rem;">التقييم: ${performance}</div>
                 <div style="margin: 0.3rem 0 0.8rem 0; color: #4a5a6a; font-size: 0.95rem;">الاسم: ${result.studentName || userName}</div>
                 <div style="margin-bottom: 0.8rem; color: #4a5a6a; font-size: 0.95rem;">المجموعة: ${result.groupSlug || groupSlug}</div>
+                ${cheatLog.length > 0 ? `<div style="background:#fde8e8;padding:10px;border-radius:8px;margin-bottom:10px;border:1px solid #e74c3c;"><strong>⚠️ تم تسجيل محاولات غش:</strong> ${cheatLog.length} محاولة</div>` : ''}
                 <div class="review-list">${reviewHtml}</div>
             `;
 
@@ -993,6 +1103,13 @@
             reportLines.push(`النتيجة: ${correct} / ${total} (${score}%)`);
             reportLines.push(`صحيح: ${correct} | خاطئ: ${wrong} | لم يجب: ${unanswered}`);
             reportLines.push(`التقييم: ${performance}`);
+            if (cheatLog.length > 0) {
+                reportLines.push('');
+                reportLines.push(`⚠️ تم تسجيل ${cheatLog.length} محاولة غش:`);
+                cheatLog.forEach((log, idx) => {
+                    reportLines.push(`  ${idx+1}. ${log.eventType} - ${log.details} (${new Date(log.timestamp).toLocaleTimeString()})`);
+                });
+            }
             reportLines.push('');
             reportLines.push('— الإجابات الخاطئة —');
             let hasWrong = false;
@@ -1017,29 +1134,6 @@
                 navigator.clipboard?.writeText(window._reportText || '').catch(() => {});
             } else {
                 shareReportBox.classList.add('hidden');
-            }
-        });
-
-        // ====== إعادة الاختبار ======
-        restartBtn.addEventListener('click', function() {
-            if (hasAttempted) {
-                alert('لقد قمت بالفعل بتأدية هذا الاختبار. لا يمكنك إعادة المحاولة.');
-                return;
-            }
-            if (!confirm('إعادة الاختبار؟ سيتم فقدان التقدم الحالي.')) return;
-            answers.fill(null);
-            submitted = false;
-            currentIndex = 0;
-            quizArea.style.display = 'block';
-            resultsArea.style.display = 'none';
-            shareReportBox.classList.add('hidden');
-            if (questions.length > 0) {
-                quizContent.style.display = 'block';
-                emptyQuizMessage.style.display = 'none';
-                renderQuestion(0);
-            } else {
-                quizContent.style.display = 'none';
-                emptyQuizMessage.style.display = 'block';
             }
         });
 
