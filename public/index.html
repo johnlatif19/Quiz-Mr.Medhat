@@ -69,34 +69,6 @@
             font-size: 1.05rem;
             margin-bottom: 2rem;
         }
-        .page-404 .btn-404 {
-            display: inline-block;
-            padding: 0.8rem 2rem;
-            background: #1d6f9c;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .page-404 .btn-404:hover {
-            background: #155a80;
-        }
-        .page-404 .admin-link {
-            margin-top: 1.5rem;
-            font-size: 0.9rem;
-        }
-        .page-404 .admin-link a {
-            color: #7f8c8d;
-            text-decoration: none;
-        }
-        .page-404 .admin-link a:hover {
-            text-decoration: underline;
-            color: #2c6f9c;
-        }
         @media (max-width: 500px) {
             .page-404 .error-code {
                 font-size: 4rem;
@@ -558,20 +530,6 @@
             }
         }
 
-        .admin-link {
-            text-align: center;
-            margin-top: 1.5rem;
-            font-size: 0.9rem;
-        }
-        .admin-link a {
-            color: #7f8c8d;
-            text-decoration: none;
-        }
-        .admin-link a:hover {
-            text-decoration: underline;
-            color: #2c6f9c;
-        }
-
         .empty-quiz-msg {
             text-align: center;
             padding: 3rem 1rem;
@@ -597,10 +555,6 @@
             <div class="error-code">404</div>
             <h1>الصفحة غير موجودة</h1>
             <p>عذراً، الصفحة التي تبحث عنها غير متوفرة. قد يكون الرابط غير صحيح أو تم حذف المجموعة.</p>
-            <a href="/login" class="btn-404">تسجيل الدخول للتحكم</a>
-            <div class="admin-link">
-                <a href="/dashboard">لوحة التحكم</a>
-            </div>
         </div>
     </div>
 
@@ -614,9 +568,6 @@
         <div class="error-msg" id="nameError">الرجاء إدخال اسمك</div>
         <div class="attempt-error" id="attemptError"></div>
         <button class="btn-start" id="startQuizBtn">بدء الاختبار</button>
-        <div class="admin-link">
-            <a href="/login">تسجيل الدخول للتحكم</a>
-        </div>
     </div>
 
     <!-- ====== Quiz Area ====== -->
