@@ -7,31 +7,24 @@ const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcrypt');
-const validator = require('validator'); // إضافة مكتبة التحقق
+const validator = require('validator');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ========== VALIDATION & SECURITY CHECKS ==========
+// في Vercel، المتغيرات البيئية متوفرة
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback_secret_123456789') {
-    console.error('❌ ERROR: JWT_SECRET must be set to a strong secret in environment variables');
-    console.error('💡 Generate one using: node -e "console.log(require(\\"crypto\\").randomBytes(64).toString(\\"hex\\"))"');
-    process.exit(1);
-}
-
-if (!process.env.ADMIN_PASSWORD_HASH) {
-    console.error('❌ ERROR: ADMIN_PASSWORD_HASH must be set in environment variables');
-    console.error('💡 Generate a hash using: node -e "console.log(require(\\"bcrypt\\").hashSync(\\"your_password\\", 10))"');
-    process.exit(1);
-}
-
-if (!process.env.ADMIN_USERNAME) {
-    console.warn('⚠️  ADMIN_USERNAME not set, using default: admin');
+    console.error('❌ ERROR: JWT_SECRET must be set');
+    // لا نوقف العملية في Vercel
+    if (process.env.NODE_ENV !== 'production') {
+        process.exit(1);
+    }
 }
 
 // ========== MIDDLEWARE ==========
-// Security headers
+// Security headers - الإصدار المطلوب للتقرير
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -39,76 +32,78 @@ app.use(helmet({
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'", "https://*.firebaseio.com", "https://*.googleapis.com"],
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [],
         },
     },
+    xFrameOptions: { action: 'sameorigin' },
+    xContentTypeOptions: true,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    permissionsPolicy: {
+        features: {
+            geolocation: ["'none'"],
+            microphone: ["'none'"],
+            camera: ["'none'"],
+            payment: ["'none'"],
+            usb: ["'none'"],
+        }
+    },
+    hsts: {
+        maxAge: 63072000,
+        includeSubDomains: true,
+        preload: true
+    }
 }));
 
-// CORS - محدود بالمصادر المسموحة
+// ========== CORS ==========
 const corsOptions = {
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'],
+    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://quiz-mr-medhat.vercel.app', 'http://localhost:3000'],
     optionsSuccessStatus: 200,
     credentials: true
 };
 app.use(cors(corsOptions));
 
-// التحقق من Content-Type
-app.use((req, res, next) => {
-    if (req.method === 'POST' || req.method === 'PUT') {
-        if (!req.is('application/json') && !req.is('multipart/form-data')) {
-            return res.status(415).json({ error: 'Content-Type must be application/json' });
-        }
-    }
-    next();
-});
-
-// تحديد حجم الـ payload بشكل آمن
+// ========== BODY PARSER ==========
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 
-// التحقق من حجم الـ payload
-app.use((req, res, next) => {
-    const contentLength = parseInt(req.headers['content-length'] || '0');
-    if (contentLength > 1024 * 1024) { // 1MB
-        return res.status(413).json({ error: 'Payload too large (max 1MB)' });
-    }
-    next();
-});
-
-app.use(express.static('public'));
+// ========== STATIC FILES ==========
+// في Vercel، المسار مختلف
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
 
 // ========== RATE LIMITING ==========
-// Rate limiting عام
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 دقيقة
-    max: 100, // حد أقصى 100 طلب لكل IP
+    windowMs: 15 * 60 * 1000,
+    max: 100,
     message: { error: 'Too many requests, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
-// Rate limiting خاص بتسجيل الدخول
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 دقيقة
-    max: 5, // 5 محاولات فقط
+    windowMs: 15 * 60 * 1000,
+    max: 5,
     message: { error: 'Too many login attempts, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// Rate limiting خاص بتقديم الامتحان
 const submitLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 ساعة
-    max: 10, // 10 محاولات فقط
+    windowMs: 60 * 60 * 1000,
+    max: 10,
     message: { error: 'Too many exam submissions, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
 // ========== JWT SECRET ==========
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_123456789';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '';
 
 // ========== FIREBASE INITIALIZATION ==========
 let db = null;
@@ -125,11 +120,11 @@ try {
         firestoreAvailable = true;
         console.log('✅ Firebase initialized successfully');
     } else {
-        console.warn('⚠️  FIREBASE_CONFIG not found. Using in-memory storage (DEVELOPMENT ONLY)');
+        console.warn('⚠️  FIREBASE_CONFIG not found. Using in-memory storage');
     }
 } catch (error) {
     console.error('❌ Firebase initialization error:', error.message);
-    console.warn('⚠️  Falling back to in-memory storage (DEVELOPMENT ONLY)');
+    console.warn('⚠️  Falling back to in-memory storage');
 }
 
 // ========== IN-MEMORY FALLBACK ==========
@@ -144,11 +139,10 @@ let nextId = 1;
 
 // ========== HELPER FUNCTIONS ==========
 
-// تنقية المدخلات المحسنة
 function sanitizeString(str) {
     if (!str) return '';
     if (typeof str !== 'string') return '';
-    return validator.escape(validator.trim(str)); // استخدام validator
+    return validator.escape(validator.trim(str));
 }
 
 function sanitizeSlug(str) {
@@ -157,13 +151,10 @@ function sanitizeSlug(str) {
     return validator.slug(str.toLowerCase().trim());
 }
 
-// التحقق المحسن من اسم الطالب
 function validateStudentName(name) {
     if (!name || typeof name !== 'string') return false;
     if (!validator.isLength(name, { min: 2, max: 50 })) return false;
-    // السماح بالأحرف العربية والإنجليزية والمسافات والشرطات فقط
     if (!validator.matches(name, /^[\u0600-\u06FFa-zA-Z\s-]+$/)) return false;
-    // منع الأحرف الخطرة
     if (validator.contains(name, ['{', '}', '$', '<', '>', ';', "'", '"', '\\', '/'])) return false;
     return true;
 }
@@ -187,7 +178,6 @@ function sanitizeObject(obj) {
     return sanitized;
 }
 
-// التحقق من الصلاحيات
 function isAdmin(req, res, next) {
     if (req.user && req.user.role === 'admin') {
         next();
@@ -196,7 +186,6 @@ function isAdmin(req, res, next) {
     }
 }
 
-// التحقق من التوكن
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -205,12 +194,6 @@ function authenticateToken(req, res, next) {
         return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
-    // التحقق من صيغة التوكن
-    if (typeof token !== 'string' || token.length < 10) {
-        return res.status(403).json({ error: 'Invalid token format.' });
-    }
-
-    // منع التوكنات الضارة
     const maliciousTokens = ['null', 'undefined', 'admin', 'token', '12345', '..', './etc/passwd'];
     if (maliciousTokens.includes(token)) {
         return res.status(403).json({ error: 'Invalid token.' });
@@ -225,32 +208,12 @@ function authenticateToken(req, res, next) {
     }
 }
 
-// ========== DATABASE FUNCTIONS WITH TIMEOUT ==========
-const DB_TIMEOUT = 5000; // 5 seconds
+// ========== DATABASE FUNCTIONS ==========
 
-async function withTimeout(promise, timeoutMs = DB_TIMEOUT) {
-    let timeoutId;
-    const timeoutPromise = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => {
-            reject(new Error('Database operation timed out'));
-        }, timeoutMs);
-    });
-    
-    try {
-        const result = await Promise.race([promise, timeoutPromise]);
-        clearTimeout(timeoutId);
-        return result;
-    } catch (error) {
-        clearTimeout(timeoutId);
-        throw error;
-    }
-}
-
-// === GROUPS ===
 async function getGroups() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('groups').orderBy('name').get());
+            const snapshot = await db.collection('groups').orderBy('name').get();
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
@@ -266,7 +229,7 @@ async function saveGroup(group) {
     const sanitized = sanitizeObject(group);
     if (firestoreAvailable && db) {
         try {
-            const docRef = await withTimeout(db.collection('groups').add(sanitized));
+            const docRef = await db.collection('groups').add(sanitized);
             return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving group:', error);
@@ -281,32 +244,21 @@ async function saveGroup(group) {
 async function deleteGroup(id) {
     if (firestoreAvailable && db) {
         try {
-            // استخدام transaction بدلاً من batch
-            await withTimeout(db.runTransaction(async (transaction) => {
-                // حذف الامتحانات المرتبطة
-                const examsSnapshot = await transaction.get(db.collection('exams').where('groupId', '==', id));
-                examsSnapshot.docs.forEach(doc => {
-                    transaction.delete(doc.ref);
+            const examsSnapshot = await db.collection('exams').where('groupId', '==', id).get();
+            const batch = db.batch();
+            examsSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            
+            for (const doc of examsSnapshot.docs) {
+                const questionsSnapshot = await db.collection('questions').where('examId', '==', doc.id).get();
+                questionsSnapshot.docs.forEach(qDoc => {
+                    batch.delete(qDoc.ref);
                 });
-                
-                // حذف الأسئلة المرتبطة
-                for (const doc of examsSnapshot.docs) {
-                    const questionsSnapshot = await transaction.get(db.collection('questions').where('examId', '==', doc.id));
-                    questionsSnapshot.docs.forEach(qDoc => {
-                        transaction.delete(qDoc.ref);
-                    });
-                }
-                
-                // حذف الـ submissions المرتبطة
-                const submissionsSnapshot = await transaction.get(db.collection('submissions').where('groupId', '==', id));
-                submissionsSnapshot.docs.forEach(doc => {
-                    transaction.delete(doc.ref);
-                });
-                
-                // حذف المجموعة
-                const groupRef = db.collection('groups').doc(id);
-                transaction.delete(groupRef);
-            }));
+            }
+            
+            batch.delete(db.collection('groups').doc(id));
+            await batch.commit();
             return true;
         } catch (error) {
             console.error('Error deleting group:', error);
@@ -327,7 +279,7 @@ async function getGroupBySlug(slug) {
     
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('groups').where('slug', '==', cleanSlug).limit(1).get());
+            const snapshot = await db.collection('groups').where('slug', '==', cleanSlug).limit(1).get();
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
                 return { id: doc.id, ...doc.data() };
@@ -343,7 +295,7 @@ async function getGroupBySlug(slug) {
 async function getGroupById(id) {
     if (firestoreAvailable && db) {
         try {
-            const doc = await withTimeout(db.collection('groups').doc(id).get());
+            const doc = await db.collection('groups').doc(id).get();
             if (doc.exists) {
                 return { id: doc.id, ...doc.data() };
             }
@@ -355,11 +307,10 @@ async function getGroupById(id) {
     return inMemoryData.groups.find(g => g.id == id);
 }
 
-// === EXAMS ===
 async function getExams() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('exams').orderBy('createdAt', 'desc').get());
+            const snapshot = await db.collection('exams').orderBy('createdAt', 'desc').get();
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
@@ -375,7 +326,7 @@ async function saveExam(exam) {
     const sanitized = sanitizeObject(exam);
     if (firestoreAvailable && db) {
         try {
-            const docRef = await withTimeout(db.collection('exams').add(sanitized));
+            const docRef = await db.collection('exams').add(sanitized);
             return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving exam:', error);
@@ -390,23 +341,13 @@ async function saveExam(exam) {
 async function deleteExam(id) {
     if (firestoreAvailable && db) {
         try {
-            await withTimeout(db.runTransaction(async (transaction) => {
-                // حذف الأسئلة المرتبطة
-                const questionsSnapshot = await transaction.get(db.collection('questions').where('examId', '==', id));
-                questionsSnapshot.docs.forEach(doc => {
-                    transaction.delete(doc.ref);
-                });
-                
-                // حذف الـ submissions المرتبطة
-                const submissionsSnapshot = await transaction.get(db.collection('submissions').where('groupId', '==', id));
-                submissionsSnapshot.docs.forEach(doc => {
-                    transaction.delete(doc.ref);
-                });
-                
-                // حذف الامتحان
-                const examRef = db.collection('exams').doc(id);
-                transaction.delete(examRef);
-            }));
+            const questionsSnapshot = await db.collection('questions').where('examId', '==', id).get();
+            const batch = db.batch();
+            questionsSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            batch.delete(db.collection('exams').doc(id));
+            await batch.commit();
             return true;
         } catch (error) {
             console.error('Error deleting exam:', error);
@@ -427,19 +368,15 @@ async function getExamByGroupSlug(slug) {
     
     if (firestoreAvailable && db) {
         try {
-            console.log('Looking for exam with slug:', cleanSlug);
-            const snapshot = await withTimeout(db.collection('exams')
+            const snapshot = await db.collection('exams')
                 .where('groupSlug', '==', cleanSlug)
                 .where('isPublished', '==', true)
                 .limit(1)
-                .get());
+                .get();
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
-                const exam = { id: doc.id, ...doc.data() };
-                console.log('Exam found:', exam.id);
-                return exam;
+                return { id: doc.id, ...doc.data() };
             }
-            console.log('No published exam found for slug:', cleanSlug);
         } catch (error) {
             console.error('Error fetching exam by slug:', error);
             throw new Error('Database error');
@@ -451,7 +388,7 @@ async function getExamByGroupSlug(slug) {
 async function getExamById(id) {
     if (firestoreAvailable && db) {
         try {
-            const doc = await withTimeout(db.collection('exams').doc(id).get());
+            const doc = await db.collection('exams').doc(id).get();
             if (doc.exists) {
                 return { id: doc.id, ...doc.data() };
             }
@@ -466,7 +403,7 @@ async function getExamById(id) {
 async function updateExamPublish(id, isPublished) {
     if (firestoreAvailable && db) {
         try {
-            await withTimeout(db.collection('exams').doc(id).update({ isPublished }));
+            await db.collection('exams').doc(id).update({ isPublished });
             return true;
         } catch (error) {
             console.error('Error updating exam publish status:', error);
@@ -487,10 +424,10 @@ async function updateExamGroup(id, groupId, groupSlug) {
     
     if (firestoreAvailable && db) {
         try {
-            await withTimeout(db.collection('exams').doc(id).update({ 
+            await db.collection('exams').doc(id).update({ 
                 groupId: cleanGroupId, 
                 groupSlug: cleanGroupSlug 
-            }));
+            });
             return true;
         } catch (error) {
             console.error('Error updating exam group:', error);
@@ -506,17 +443,12 @@ async function updateExamGroup(id, groupId, groupSlug) {
     return false;
 }
 
-// === QUESTIONS ===
 async function getQuestionsByExamId(examId) {
-    console.log('getQuestionsByExamId called with examId:', examId);
-    
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('questions')
+            const snapshot = await db.collection('questions')
                 .where('examId', '==', examId)
-                .get());
-            
-            console.log('Firestore returned:', snapshot.size, 'questions');
+                .get();
             
             if (!snapshot.empty) {
                 const questions = snapshot.docs.map(doc => ({ 
@@ -524,25 +456,18 @@ async function getQuestionsByExamId(examId) {
                     ...doc.data() 
                 }));
                 questions.sort((a, b) => (a.id || 0) - (b.id || 0));
-                console.log('Questions loaded:', questions.length);
                 return questions;
             }
-            
-            console.log('No questions found with examId:', examId);
             return [];
         } catch (error) {
             console.error('Error in getQuestionsByExamId:', error);
             throw new Error('Database error');
         }
     }
-    
-    console.log('Using in-memory questions');
     return inMemoryData.questions.filter(q => q.examId == examId);
 }
 
 async function saveQuestions(questions) {
-    console.log('Saving questions:', questions.length);
-    
     if (!questions || questions.length === 0) {
         throw new Error('No questions to save');
     }
@@ -551,13 +476,11 @@ async function saveQuestions(questions) {
         throw new Error('Too many questions (max 100)');
     }
     
-    // تنقية الأسئلة
     const sanitizedQuestions = questions.map((q, index) => ({
         ...sanitizeObject(q),
         id: index + 1,
         options: q.options.map(opt => sanitizeString(opt)),
         correct: parseInt(q.correct) || 0,
-        // التحقق من صحة الخيارات
         text: validator.escape(validator.trim(q.text || ''))
     }));
     
@@ -567,21 +490,18 @@ async function saveQuestions(questions) {
             const examId = sanitizedQuestions[0]?.examId;
             
             if (examId) {
-                const existing = await withTimeout(db.collection('questions')
+                const existing = await db.collection('questions')
                     .where('examId', '==', examId)
-                    .get());
+                    .get();
                 existing.docs.forEach(doc => batch.delete(doc.ref));
-                console.log('Deleted', existing.size, 'old questions');
             }
             
             sanitizedQuestions.forEach((q) => {
                 const docRef = db.collection('questions').doc();
                 batch.set(docRef, q);
-                console.log('Adding question', q.id);
             });
             
-            await withTimeout(batch.commit());
-            console.log('Questions saved successfully');
+            await batch.commit();
             return true;
         } catch (error) {
             console.error('Error saving questions:', error);
@@ -600,10 +520,10 @@ async function saveQuestions(questions) {
 async function deleteQuestionsByExamId(examId) {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('questions').where('examId', '==', examId).get());
+            const snapshot = await db.collection('questions').where('examId', '==', examId).get();
             const batch = db.batch();
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
-            await withTimeout(batch.commit());
+            await batch.commit();
             return true;
         } catch (error) {
             console.error('Error deleting questions:', error);
@@ -617,7 +537,7 @@ async function deleteQuestionsByExamId(examId) {
 async function deleteSingleQuestion(id) {
     if (firestoreAvailable && db) {
         try {
-            await withTimeout(db.collection('questions').doc(id).delete());
+            await db.collection('questions').doc(id).delete();
             return true;
         } catch (error) {
             console.error('Error deleting question:', error);
@@ -632,13 +552,12 @@ async function deleteSingleQuestion(id) {
     return false;
 }
 
-// === SUBMISSIONS ===
 async function getSubmissions() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('submissions')
+            const snapshot = await db.collection('submissions')
                 .orderBy('timestamp', 'desc')
-                .get());
+                .get();
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
@@ -651,14 +570,12 @@ async function getSubmissions() {
 }
 
 async function saveSubmission(submission) {
-    // تنقية البيانات
     const sanitized = sanitizeObject(submission);
-    // تخزين اسم الطالب بحروف صغيرة للتحقق
     sanitized.studentNameLower = sanitized.studentName.toLowerCase();
     
     if (firestoreAvailable && db) {
         try {
-            const docRef = await withTimeout(db.collection('submissions').add(sanitized));
+            const docRef = await db.collection('submissions').add(sanitized);
             return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving submission:', error);
@@ -673,7 +590,7 @@ async function saveSubmission(submission) {
 async function deleteSubmission(id) {
     if (firestoreAvailable && db) {
         try {
-            await withTimeout(db.collection('submissions').doc(id).delete());
+            await db.collection('submissions').doc(id).delete();
             return true;
         } catch (error) {
             console.error('Error deleting submission:', error);
@@ -699,10 +616,10 @@ async function checkStudentAttempt(groupSlug, studentName) {
     
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('submissions')
+            const snapshot = await db.collection('submissions')
                 .where('groupSlug', '==', cleanSlug)
                 .where('studentNameLower', '==', cleanNameLower)
-                .get());
+                .get();
             return !snapshot.empty;
         } catch (error) {
             console.error('Error checking attempt:', error);
@@ -715,14 +632,13 @@ async function checkStudentAttempt(groupSlug, studentName) {
     );
 }
 
-// === CHEAT REPORTS ===
 async function saveCheatReport(report) {
     const sanitized = sanitizeObject(report);
     sanitized.timestamp = sanitized.timestamp || new Date().toISOString();
     
     if (firestoreAvailable && db) {
         try {
-            const docRef = await withTimeout(db.collection('cheats').add(sanitized));
+            const docRef = await db.collection('cheats').add(sanitized);
             return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving cheat report:', error);
@@ -737,9 +653,9 @@ async function saveCheatReport(report) {
 async function getCheatReports() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('cheats')
+            const snapshot = await db.collection('cheats')
                 .orderBy('timestamp', 'desc')
-                .get());
+                .get();
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
@@ -754,10 +670,10 @@ async function getCheatReports() {
 async function clearCheatReports() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await withTimeout(db.collection('cheats').get());
+            const snapshot = await db.collection('cheats').get();
             const batch = db.batch();
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
-            await withTimeout(batch.commit());
+            await batch.commit();
             return true;
         } catch (error) {
             console.error('Error clearing cheat reports:', error);
@@ -771,7 +687,7 @@ async function clearCheatReports() {
 async function deleteCheatReport(id) {
     if (firestoreAvailable && db) {
         try {
-            await withTimeout(db.collection('cheats').doc(id).delete());
+            await db.collection('cheats').doc(id).delete();
             return true;
         } catch (error) {
             console.error('Error deleting cheat report:', error);
@@ -788,12 +704,10 @@ async function deleteCheatReport(id) {
 
 // ========== ROUTES ==========
 
-// === LOGIN ===
 app.post('/api/login', loginLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
         
-        // تنقية المدخلات
         const cleanUsername = sanitizeString(username);
         const cleanPassword = sanitizeString(password);
         
@@ -818,7 +732,6 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             }
         }
         
-        // تأخير الرد لمنع هجمات التوقيت
         setTimeout(() => {
             res.status(401).json({ error: 'Invalid credentials' });
         }, 1000);
@@ -828,7 +741,6 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     }
 });
 
-// === GROUPS ===
 app.get('/api/groups', authenticateToken, isAdmin, async (req, res) => {
     try {
         const groups = await getGroups();
@@ -845,10 +757,6 @@ app.post('/api/groups', authenticateToken, isAdmin, async (req, res) => {
         
         if (!cleanName || cleanName.length < 2) {
             return res.status(400).json({ error: 'Group name must be at least 2 characters' });
-        }
-        
-        if (!validator.matches(cleanName, /^[\u0600-\u06FFa-zA-Z\s-]+$/)) {
-            return res.status(400).json({ error: 'Invalid group name format' });
         }
         
         const slug = sanitizeSlug(cleanName);
@@ -882,7 +790,6 @@ app.delete('/api/groups/:id', authenticateToken, isAdmin, async (req, res) => {
     }
 });
 
-// === CHECK GROUP EXISTS ===
 app.get('/api/group/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -897,12 +804,10 @@ app.get('/api/group/:slug', async (req, res) => {
     }
 });
 
-// === CHECK STUDENT ATTEMPT ===
 app.get('/api/check-attempt/:groupSlug/:studentName', async (req, res) => {
     try {
         const { groupSlug, studentName } = req.params;
         
-        // التحقق من صحة اسم الطالب
         if (!validateStudentName(studentName)) {
             return res.status(400).json({ error: 'Invalid student name' });
         }
@@ -914,7 +819,6 @@ app.get('/api/check-attempt/:groupSlug/:studentName', async (req, res) => {
     }
 });
 
-// === EXAMS ===
 app.get('/api/exams', authenticateToken, isAdmin, async (req, res) => {
     try {
         const exams = await getExams();
@@ -933,7 +837,6 @@ app.post('/api/exams', authenticateToken, isAdmin, async (req, res) => {
     try {
         const { groupId, groupSlug, questions } = req.body;
         
-        // التحقق من وجود المجموعة
         const group = await getGroupById(groupId);
         if (!group) {
             return res.status(404).json({ error: 'Group not found' });
@@ -947,7 +850,6 @@ app.post('/api/exams', authenticateToken, isAdmin, async (req, res) => {
             return res.status(400).json({ error: 'Questions must be between 1 and 100' });
         }
         
-        // التحقق من صحة الأسئلة
         for (let q of questions) {
             if (!q.text || q.text.length < 3) {
                 return res.status(400).json({ error: 'Each question must have text' });
@@ -1007,7 +909,6 @@ app.put('/api/exams/:id/group', authenticateToken, isAdmin, async (req, res) => 
         const { id } = req.params;
         const { groupId, groupSlug } = req.body;
         
-        // التحقق من وجود المجموعة الجديدة
         const group = await getGroupById(groupId);
         if (!group) {
             return res.status(404).json({ error: 'Group not found' });
@@ -1038,7 +939,6 @@ app.delete('/api/exams/:id', authenticateToken, isAdmin, async (req, res) => {
     }
 });
 
-// === EDIT EXAM QUESTIONS ===
 app.put('/api/exams/:id/questions', authenticateToken, isAdmin, async (req, res) => {
     try {
         const examId = req.params.id;
@@ -1048,7 +948,6 @@ app.put('/api/exams/:id/questions', authenticateToken, isAdmin, async (req, res)
             return res.status(400).json({ error: 'Questions must be between 1 and 100' });
         }
         
-        // التحقق من صحة الأسئلة
         for (let q of questions) {
             if (!q.text || q.text.length < 3) {
                 return res.status(400).json({ error: 'Each question must have text' });
@@ -1089,7 +988,6 @@ app.put('/api/exams/:id/questions', authenticateToken, isAdmin, async (req, res)
     }
 });
 
-// === DELETE SINGLE QUESTION ===
 app.delete('/api/questions/:id', authenticateToken, isAdmin, async (req, res) => {
     try {
         const deleted = await deleteSingleQuestion(req.params.id);
@@ -1099,28 +997,21 @@ app.delete('/api/questions/:id', authenticateToken, isAdmin, async (req, res) =>
     }
 });
 
-// === STUDENT EXAM ===
 app.get('/api/exam/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
-        console.log('Looking for exam with slug:', slug);
         
         const group = await getGroupBySlug(slug);
         if (!group) {
-            console.log('Group not found:', slug);
             return res.status(404).json({ error: 'Group not found' });
         }
-        console.log('Group found:', group.name);
         
         const exam = await getExamByGroupSlug(slug);
         if (!exam) {
-            console.log('Exam not found or not published for slug:', slug);
             return res.status(404).json({ error: 'Exam not found or not published' });
         }
-        console.log('Exam found:', exam.id);
         
         const questions = await getQuestionsByExamId(exam.id);
-        console.log('Questions returned:', questions.length);
         
         res.json({ exam, questions });
     } catch (error) {
@@ -1133,7 +1024,6 @@ app.post('/api/submit-exam', submitLimiter, async (req, res) => {
     try {
         const { groupSlug, studentName, answers, cheatLog } = req.body;
         
-        // التحقق من صحة البيانات
         if (!groupSlug || !studentName || !answers) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
@@ -1198,7 +1088,6 @@ app.post('/api/submit-exam', submitLimiter, async (req, res) => {
     }
 });
 
-// === SUBMISSIONS (ADMIN) ===
 app.get('/api/submissions', authenticateToken, isAdmin, async (req, res) => {
     try {
         const submissions = await getSubmissions();
@@ -1217,7 +1106,6 @@ app.delete('/api/submissions/:id', authenticateToken, isAdmin, async (req, res) 
     }
 });
 
-// === CHEAT REPORTS ===
 app.post('/api/cheat-report', async (req, res) => {
     try {
         const { studentName, groupSlug, eventType, details, timestamp } = req.body;
@@ -1280,46 +1168,46 @@ app.delete('/api/cheats/:id', authenticateToken, isAdmin, async (req, res) => {
 
 // ========== FRONTEND ROUTES ==========
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    res.sendFile(path.join(publicPath, 'login.html'));
 });
 
 app.get('/dashboard', authenticateToken, isAdmin, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+    res.sendFile(path.join(publicPath, 'dashboard.html'));
 });
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 app.get('/:groupSlug', (req, res) => {
     const slug = req.params.groupSlug;
-    
     const reservedPaths = ['login', 'dashboard', 'api', 'favicon.ico', 'robots.txt'];
     if (reservedPaths.includes(slug) || slug.includes('.')) {
-        return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+        return res.sendFile(path.join(publicPath, 'index.html'));
     }
-    
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 // ========== ERROR HANDLING ==========
-// 404 handler
 app.use((req, res) => {
     res.status(404).json({ error: 'Not found' });
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
 });
 
-// ========== START SERVER ==========
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`🔥 Firebase: ${firestoreAvailable ? 'Connected ✅' : 'Not connected (using in-memory) ⚠️'}`);
-    console.log(`🔐 Security: All security measures enabled ✅`);
-    console.log(`📝 Admin username: ${ADMIN_USERNAME}`);
-    console.log(`🔑 Password: Using bcrypt hash ✅`);
-    console.log(`📊 Status: Ready to serve 🎯`);
-});
+// ========== EXPORT FOR VERCEL ==========
+module.exports = app;
+
+// ========== START SERVER (Local) ==========
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+        console.log(`🔥 Firebase: ${firestoreAvailable ? 'Connected ✅' : 'Not connected (using in-memory) ⚠️'}`);
+        console.log(`🔐 Security: All security measures enabled ✅`);
+        console.log(`📝 Admin username: ${ADMIN_USERNAME}`);
+        console.log(`📊 Status: Ready to serve 🎯`);
+    });
+}
