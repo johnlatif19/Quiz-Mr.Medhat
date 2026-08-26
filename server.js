@@ -46,7 +46,8 @@ let inMemoryData = {
     groups: [],
     exams: [],
     questions: [],
-    submissions: []
+    submissions: [],
+    cheats: []
 };
 let nextId = 1;
 
@@ -113,6 +114,20 @@ async function getGroupBySlug(slug) {
         }
     }
     return inMemoryData.groups.find(g => g.slug === slug);
+}
+
+async function getGroupById(id) {
+    if (firestoreAvailable && db) {
+        try {
+            const doc = await db.collection('groups').doc(id).get();
+            if (doc.exists) {
+                return { id: doc.id, ...doc.data() };
+            }
+        } catch (error) {
+            console.error('Error fetching group by id:', error);
+        }
+    }
+    return inMemoryData.groups.find(g => g.id == id);
 }
 
 // === Exams ===
@@ -186,6 +201,20 @@ async function getExamByGroupSlug(slug) {
     return inMemoryData.exams.find(e => e.groupSlug === slug && e.isPublished);
 }
 
+async function getExamById(id) {
+    if (firestoreAvailable && db) {
+        try {
+            const doc = await db.collection('exams').doc(id).get();
+            if (doc.exists) {
+                return { id: doc.id, ...doc.data() };
+            }
+        } catch (error) {
+            console.error('Error fetching exam by id:', error);
+        }
+    }
+    return inMemoryData.exams.find(e => e.id == id);
+}
+
 async function updateExamPublish(id, isPublished) {
     if (firestoreAvailable && db) {
         try {
@@ -199,6 +228,25 @@ async function updateExamPublish(id, isPublished) {
     const exam = inMemoryData.exams.find(e => e.id == id);
     if (exam) {
         exam.isPublished = isPublished;
+        return true;
+    }
+    return false;
+}
+
+async function updateExamGroup(id, groupId, groupSlug) {
+    if (firestoreAvailable && db) {
+        try {
+            await db.collection('exams').doc(id).update({ groupId, groupSlug });
+            return true;
+        } catch (error) {
+            console.error('Error updating exam group:', error);
+            return false;
+        }
+    }
+    const exam = inMemoryData.exams.find(e => e.id == id);
+    if (exam) {
+        exam.groupId = groupId;
+        exam.groupSlug = groupSlug;
         return true;
     }
     return false;
@@ -299,6 +347,24 @@ async function deleteQuestionsByExamId(examId) {
     return true;
 }
 
+async function deleteSingleQuestion(id) {
+    if (firestoreAvailable && db) {
+        try {
+            await db.collection('questions').doc(id).delete();
+            return true;
+        } catch (error) {
+            console.error('Error deleting question:', error);
+            return false;
+        }
+    }
+    const index = inMemoryData.questions.findIndex(q => q.id == id);
+    if (index !== -1) {
+        inMemoryData.questions.splice(index, 1);
+        return true;
+    }
+    return false;
+}
+
 // === Submissions ===
 async function getSubmissions() {
     if (firestoreAvailable && db) {
@@ -363,6 +429,58 @@ async function checkStudentAttempt(groupSlug, studentName) {
         }
     }
     return inMemoryData.submissions.some(s => s.groupSlug === groupSlug && s.studentName === studentName);
+}
+
+// === Cheat Reports ===
+async function saveCheatReport(report) {
+    if (firestoreAvailable && db) {
+        try {
+            const docRef = await db.collection('cheats').add({
+                ...report,
+                timestamp: report.timestamp || new Date().toISOString()
+            });
+            return { id: docRef.id, ...report };
+        } catch (error) {
+            console.error('Error saving cheat report:', error);
+            return null;
+        }
+    }
+    report.id = nextId++;
+    inMemoryData.cheats.push(report);
+    return report;
+}
+
+async function getCheatReports() {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('cheats')
+                .orderBy('timestamp', 'desc')
+                .get();
+            if (!snapshot.empty) {
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }
+        } catch (error) {
+            console.error('Error fetching cheat reports:', error);
+        }
+    }
+    return inMemoryData.cheats;
+}
+
+async function clearCheatReports() {
+    if (firestoreAvailable && db) {
+        try {
+            const snapshot = await db.collection('cheats').get();
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            return true;
+        } catch (error) {
+            console.error('Error clearing cheat reports:', error);
+            return false;
+        }
+    }
+    inMemoryData.cheats = [];
+    return true;
 }
 
 // ========== MIDDLEWARE ==========
@@ -522,6 +640,27 @@ app.put('/api/exams/:id/publish', authenticateToken, async (req, res) => {
     }
 });
 
+app.put('/api/exams/:id/group', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { groupId, groupSlug } = req.body;
+        
+        if (!groupId || !groupSlug) {
+            return res.status(400).json({ error: 'Group ID and slug required' });
+        }
+        
+        const updated = await updateExamGroup(id, groupId, groupSlug);
+        if (updated) {
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ error: 'Exam not found' });
+        }
+    } catch (error) {
+        console.error('Error updating exam group:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.delete('/api/exams/:id', authenticateToken, async (req, res) => {
     try {
         await deleteQuestionsByExamId(req.params.id);
@@ -574,14 +713,8 @@ app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
 // === Delete single question ===
 app.delete('/api/questions/:id', authenticateToken, async (req, res) => {
     try {
-        const questionId = req.params.id;
-        if (firestoreAvailable && db) {
-            await db.collection('questions').doc(questionId).delete();
-        } else {
-            const index = inMemoryData.questions.findIndex(q => q.id == questionId);
-            if (index !== -1) inMemoryData.questions.splice(index, 1);
-        }
-        res.json({ success: true });
+        const deleted = await deleteSingleQuestion(req.params.id);
+        res.json({ success: deleted });
     } catch (error) {
         console.error('Error deleting question:', error);
         res.status(500).json({ error: error.message });
@@ -620,7 +753,7 @@ app.get('/api/exam/:slug', async (req, res) => {
 
 app.post('/api/submit-exam', async (req, res) => {
     try {
-        const { groupSlug, studentName, answers } = req.body;
+        const { groupSlug, studentName, answers, cheatLog } = req.body;
         
         if (!groupSlug || !studentName || !answers) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -641,14 +774,14 @@ app.post('/api/submit-exam', async (req, res) => {
         const results = [];
 
         questions.forEach((q, idx) => {
-            const userAnswer = answers[idx] !== undefined ? answers[idx] : null;
+            const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? answers[idx] : -1;
             const isCorrect = userAnswer === q.correct;
             if (isCorrect) correctCount++;
             results.push({
                 questionId: q.id,
                 questionText: q.text,
                 options: q.options,
-                userAnswer,
+                userAnswer: userAnswer,
                 correctAnswer: q.correct,
                 isCorrect
             });
@@ -662,12 +795,14 @@ app.post('/api/submit-exam', async (req, res) => {
             total: questions.length,
             correct: correctCount,
             score: Math.round((correctCount / questions.length) * 100),
-            results
+            results,
+            cheatLog: cheatLog || []
         };
 
         const saved = await saveSubmission(submission);
         res.json({ success: true, submission: saved });
     } catch (error) {
+        console.error('Error in /api/submit-exam:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -691,7 +826,59 @@ app.delete('/api/submissions/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// === Cheat Reports Routes ===
+app.post('/api/cheat-report', async (req, res) => {
+    try {
+        const { studentName, groupSlug, eventType, details, timestamp } = req.body;
+        if (!studentName || !groupSlug || !eventType) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        const report = {
+            studentName,
+            groupSlug,
+            eventType,
+            details: details || '',
+            timestamp: timestamp || new Date().toISOString()
+        };
+        
+        const saved = await saveCheatReport(report);
+        res.json({ success: true, report: saved });
+    } catch (error) {
+        console.error('Error in /api/cheat-report:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/cheats', authenticateToken, async (req, res) => {
+    try {
+        const reports = await getCheatReports();
+        res.json(reports);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/cheats', authenticateToken, async (req, res) => {
+    try {
+        await clearCheatReports();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ========== FRONTEND ROUTES ==========
+
+// Login page
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Dashboard page
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
 
 // Home page - shows 404
 app.get('/', (req, res) => {
