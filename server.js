@@ -7,10 +7,24 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
+app.disable('x-powered-by'); // إخفاء معلومات الخادم
+
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// ========== MIDDLEWARE ==========
 app.use(cors());
+
+// ========== SECURITY HEADERS ==========
+app.use((req, res, next) => {
+    // رؤوس الأمان الإضافية (في حال لم تعمل من vercel.json)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'");
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
@@ -310,7 +324,7 @@ async function saveQuestions(questions) {
                     examId: examId
                 };
                 batch.set(docRef, data);
-                console.log('Adding question', index + 1, ':', data.text);
+                console.log('Adding question', index + 1, ':', q.text);
             });
             
             await batch.commit();
