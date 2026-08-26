@@ -7,6 +7,7 @@ const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcrypt');
+const validator = require('validator'); // إضافة مكتبة التحقق
 require('dotenv').config();
 
 const app = express();
@@ -50,15 +51,39 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+// التحقق من Content-Type
+app.use((req, res, next) => {
+    if (req.method === 'POST' || req.method === 'PUT') {
+        if (!req.is('application/json') && !req.is('multipart/form-data')) {
+            return res.status(415).json({ error: 'Content-Type must be application/json' });
+        }
+    }
+    next();
+});
+
+// تحديد حجم الـ payload بشكل آمن
+app.use(bodyParser.json({ limit: '1mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
+
+// التحقق من حجم الـ payload
+app.use((req, res, next) => {
+    const contentLength = parseInt(req.headers['content-length'] || '0');
+    if (contentLength > 1024 * 1024) { // 1MB
+        return res.status(413).json({ error: 'Payload too large (max 1MB)' });
+    }
+    next();
+});
+
 app.use(express.static('public'));
 
 // ========== RATE LIMITING ==========
+// Rate limiting عام
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 دقيقة
     max: 100, // حد أقصى 100 طلب لكل IP
-    message: { error: 'Too many requests, please try again later.' }
+    message: { error: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
@@ -66,7 +91,18 @@ app.use('/api/', limiter);
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 دقيقة
     max: 5, // 5 محاولات فقط
-    message: { error: 'Too many login attempts, please try again later.' }
+    message: { error: 'Too many login attempts, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Rate limiting خاص بتقديم الامتحان
+const submitLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 ساعة
+    max: 10, // 10 محاولات فقط
+    message: { error: 'Too many exam submissions, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 
 // ========== JWT SECRET ==========
@@ -108,26 +144,32 @@ let nextId = 1;
 
 // ========== HELPER FUNCTIONS ==========
 
-// تنقية المدخلات
+// تنقية المدخلات المحسنة
 function sanitizeString(str) {
     if (!str) return '';
-    return str.trim().replace(/[<>]/g, ''); // منع XSS
+    if (typeof str !== 'string') return '';
+    return validator.escape(validator.trim(str)); // استخدام validator
 }
 
 function sanitizeSlug(str) {
     if (!str) return '';
-    return str.toLowerCase().trim()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '');
+    if (typeof str !== 'string') return '';
+    return validator.slug(str.toLowerCase().trim());
 }
 
+// التحقق المحسن من اسم الطالب
 function validateStudentName(name) {
-    if (!name || name.length < 2 || name.length > 50) return false;
-    if (!/^[\u0600-\u06FFa-zA-Z\s-]+$/.test(name)) return false; // عربي أو إنجليزي فقط
+    if (!name || typeof name !== 'string') return false;
+    if (!validator.isLength(name, { min: 2, max: 50 })) return false;
+    // السماح بالأحرف العربية والإنجليزية والمسافات والشرطات فقط
+    if (!validator.matches(name, /^[\u0600-\u06FFa-zA-Z\s-]+$/)) return false;
+    // منع الأحرف الخطرة
+    if (validator.contains(name, ['{', '}', '$', '<', '>', ';', "'", '"', '\\', '/'])) return false;
     return true;
 }
 
 function sanitizeObject(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
     const sanitized = {};
     for (let key in obj) {
         if (typeof obj[key] === 'string') {
@@ -154,13 +196,61 @@ function isAdmin(req, res, next) {
     }
 }
 
-// ========== DATABASE FUNCTIONS ==========
+// التحقق من التوكن
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Access denied. No token provided.' });
+    }
+
+    // التحقق من صيغة التوكن
+    if (typeof token !== 'string' || token.length < 10) {
+        return res.status(403).json({ error: 'Invalid token format.' });
+    }
+
+    // منع التوكنات الضارة
+    const maliciousTokens = ['null', 'undefined', 'admin', 'token', '12345', '..', './etc/passwd'];
+    if (maliciousTokens.includes(token)) {
+        return res.status(403).json({ error: 'Invalid token.' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(403).json({ error: 'Invalid or expired token.' });
+    }
+}
+
+// ========== DATABASE FUNCTIONS WITH TIMEOUT ==========
+const DB_TIMEOUT = 5000; // 5 seconds
+
+async function withTimeout(promise, timeoutMs = DB_TIMEOUT) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error('Database operation timed out'));
+        }, timeoutMs);
+    });
+    
+    try {
+        const result = await Promise.race([promise, timeoutPromise]);
+        clearTimeout(timeoutId);
+        return result;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+    }
+}
 
 // === GROUPS ===
 async function getGroups() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('groups').orderBy('name').get();
+            const snapshot = await withTimeout(db.collection('groups').orderBy('name').get());
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
@@ -176,7 +266,7 @@ async function saveGroup(group) {
     const sanitized = sanitizeObject(group);
     if (firestoreAvailable && db) {
         try {
-            const docRef = await db.collection('groups').add(sanitized);
+            const docRef = await withTimeout(db.collection('groups').add(sanitized));
             return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving group:', error);
@@ -191,24 +281,32 @@ async function saveGroup(group) {
 async function deleteGroup(id) {
     if (firestoreAvailable && db) {
         try {
-            // حذف الامتحانات المرتبطة أولاً
-            const examsSnapshot = await db.collection('exams').where('groupId', '==', id).get();
-            const batch = db.batch();
-            examsSnapshot.docs.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            
-            // حذف الأسئلة المرتبطة بالامتحانات
-            for (const doc of examsSnapshot.docs) {
-                const questionsSnapshot = await db.collection('questions').where('examId', '==', doc.id).get();
-                questionsSnapshot.docs.forEach(qDoc => {
-                    batch.delete(qDoc.ref);
+            // استخدام transaction بدلاً من batch
+            await withTimeout(db.runTransaction(async (transaction) => {
+                // حذف الامتحانات المرتبطة
+                const examsSnapshot = await transaction.get(db.collection('exams').where('groupId', '==', id));
+                examsSnapshot.docs.forEach(doc => {
+                    transaction.delete(doc.ref);
                 });
-            }
-            
-            // حذف المجموعة
-            batch.delete(db.collection('groups').doc(id));
-            await batch.commit();
+                
+                // حذف الأسئلة المرتبطة
+                for (const doc of examsSnapshot.docs) {
+                    const questionsSnapshot = await transaction.get(db.collection('questions').where('examId', '==', doc.id));
+                    questionsSnapshot.docs.forEach(qDoc => {
+                        transaction.delete(qDoc.ref);
+                    });
+                }
+                
+                // حذف الـ submissions المرتبطة
+                const submissionsSnapshot = await transaction.get(db.collection('submissions').where('groupId', '==', id));
+                submissionsSnapshot.docs.forEach(doc => {
+                    transaction.delete(doc.ref);
+                });
+                
+                // حذف المجموعة
+                const groupRef = db.collection('groups').doc(id);
+                transaction.delete(groupRef);
+            }));
             return true;
         } catch (error) {
             console.error('Error deleting group:', error);
@@ -229,7 +327,7 @@ async function getGroupBySlug(slug) {
     
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('groups').where('slug', '==', cleanSlug).limit(1).get();
+            const snapshot = await withTimeout(db.collection('groups').where('slug', '==', cleanSlug).limit(1).get());
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
                 return { id: doc.id, ...doc.data() };
@@ -245,7 +343,7 @@ async function getGroupBySlug(slug) {
 async function getGroupById(id) {
     if (firestoreAvailable && db) {
         try {
-            const doc = await db.collection('groups').doc(id).get();
+            const doc = await withTimeout(db.collection('groups').doc(id).get());
             if (doc.exists) {
                 return { id: doc.id, ...doc.data() };
             }
@@ -261,7 +359,7 @@ async function getGroupById(id) {
 async function getExams() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('exams').orderBy('createdAt', 'desc').get();
+            const snapshot = await withTimeout(db.collection('exams').orderBy('createdAt', 'desc').get());
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
@@ -277,7 +375,7 @@ async function saveExam(exam) {
     const sanitized = sanitizeObject(exam);
     if (firestoreAvailable && db) {
         try {
-            const docRef = await db.collection('exams').add(sanitized);
+            const docRef = await withTimeout(db.collection('exams').add(sanitized));
             return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving exam:', error);
@@ -292,14 +390,23 @@ async function saveExam(exam) {
 async function deleteExam(id) {
     if (firestoreAvailable && db) {
         try {
-            // حذف الأسئلة المرتبطة
-            const questionsSnapshot = await db.collection('questions').where('examId', '==', id).get();
-            const batch = db.batch();
-            questionsSnapshot.docs.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            batch.delete(db.collection('exams').doc(id));
-            await batch.commit();
+            await withTimeout(db.runTransaction(async (transaction) => {
+                // حذف الأسئلة المرتبطة
+                const questionsSnapshot = await transaction.get(db.collection('questions').where('examId', '==', id));
+                questionsSnapshot.docs.forEach(doc => {
+                    transaction.delete(doc.ref);
+                });
+                
+                // حذف الـ submissions المرتبطة
+                const submissionsSnapshot = await transaction.get(db.collection('submissions').where('groupId', '==', id));
+                submissionsSnapshot.docs.forEach(doc => {
+                    transaction.delete(doc.ref);
+                });
+                
+                // حذف الامتحان
+                const examRef = db.collection('exams').doc(id);
+                transaction.delete(examRef);
+            }));
             return true;
         } catch (error) {
             console.error('Error deleting exam:', error);
@@ -321,11 +428,11 @@ async function getExamByGroupSlug(slug) {
     if (firestoreAvailable && db) {
         try {
             console.log('Looking for exam with slug:', cleanSlug);
-            const snapshot = await db.collection('exams')
+            const snapshot = await withTimeout(db.collection('exams')
                 .where('groupSlug', '==', cleanSlug)
                 .where('isPublished', '==', true)
                 .limit(1)
-                .get();
+                .get());
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
                 const exam = { id: doc.id, ...doc.data() };
@@ -344,7 +451,7 @@ async function getExamByGroupSlug(slug) {
 async function getExamById(id) {
     if (firestoreAvailable && db) {
         try {
-            const doc = await db.collection('exams').doc(id).get();
+            const doc = await withTimeout(db.collection('exams').doc(id).get());
             if (doc.exists) {
                 return { id: doc.id, ...doc.data() };
             }
@@ -359,7 +466,7 @@ async function getExamById(id) {
 async function updateExamPublish(id, isPublished) {
     if (firestoreAvailable && db) {
         try {
-            await db.collection('exams').doc(id).update({ isPublished });
+            await withTimeout(db.collection('exams').doc(id).update({ isPublished }));
             return true;
         } catch (error) {
             console.error('Error updating exam publish status:', error);
@@ -380,10 +487,10 @@ async function updateExamGroup(id, groupId, groupSlug) {
     
     if (firestoreAvailable && db) {
         try {
-            await db.collection('exams').doc(id).update({ 
+            await withTimeout(db.collection('exams').doc(id).update({ 
                 groupId: cleanGroupId, 
                 groupSlug: cleanGroupSlug 
-            });
+            }));
             return true;
         } catch (error) {
             console.error('Error updating exam group:', error);
@@ -405,9 +512,9 @@ async function getQuestionsByExamId(examId) {
     
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('questions')
+            const snapshot = await withTimeout(db.collection('questions')
                 .where('examId', '==', examId)
-                .get();
+                .get());
             
             console.log('Firestore returned:', snapshot.size, 'questions');
             
@@ -440,12 +547,18 @@ async function saveQuestions(questions) {
         throw new Error('No questions to save');
     }
     
+    if (questions.length > 100) {
+        throw new Error('Too many questions (max 100)');
+    }
+    
     // تنقية الأسئلة
-    const sanitizedQuestions = questions.map(q => ({
+    const sanitizedQuestions = questions.map((q, index) => ({
         ...sanitizeObject(q),
-        // التأكد من صحة الخيارات
+        id: index + 1,
         options: q.options.map(opt => sanitizeString(opt)),
-        correct: parseInt(q.correct) || 0
+        correct: parseInt(q.correct) || 0,
+        // التحقق من صحة الخيارات
+        text: validator.escape(validator.trim(q.text || ''))
     }));
     
     if (firestoreAvailable && db) {
@@ -454,25 +567,20 @@ async function saveQuestions(questions) {
             const examId = sanitizedQuestions[0]?.examId;
             
             if (examId) {
-                const existing = await db.collection('questions')
+                const existing = await withTimeout(db.collection('questions')
                     .where('examId', '==', examId)
-                    .get();
+                    .get());
                 existing.docs.forEach(doc => batch.delete(doc.ref));
                 console.log('Deleted', existing.size, 'old questions');
             }
             
-            sanitizedQuestions.forEach((q, index) => {
+            sanitizedQuestions.forEach((q) => {
                 const docRef = db.collection('questions').doc();
-                const data = {
-                    ...q,
-                    id: index + 1,
-                    examId: examId
-                };
-                batch.set(docRef, data);
-                console.log('Adding question', index + 1);
+                batch.set(docRef, q);
+                console.log('Adding question', q.id);
             });
             
-            await batch.commit();
+            await withTimeout(batch.commit());
             console.log('Questions saved successfully');
             return true;
         } catch (error) {
@@ -492,10 +600,10 @@ async function saveQuestions(questions) {
 async function deleteQuestionsByExamId(examId) {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('questions').where('examId', '==', examId).get();
+            const snapshot = await withTimeout(db.collection('questions').where('examId', '==', examId).get());
             const batch = db.batch();
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
+            await withTimeout(batch.commit());
             return true;
         } catch (error) {
             console.error('Error deleting questions:', error);
@@ -509,7 +617,7 @@ async function deleteQuestionsByExamId(examId) {
 async function deleteSingleQuestion(id) {
     if (firestoreAvailable && db) {
         try {
-            await db.collection('questions').doc(id).delete();
+            await withTimeout(db.collection('questions').doc(id).delete());
             return true;
         } catch (error) {
             console.error('Error deleting question:', error);
@@ -528,9 +636,9 @@ async function deleteSingleQuestion(id) {
 async function getSubmissions() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('submissions')
+            const snapshot = await withTimeout(db.collection('submissions')
                 .orderBy('timestamp', 'desc')
-                .get();
+                .get());
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
@@ -550,7 +658,7 @@ async function saveSubmission(submission) {
     
     if (firestoreAvailable && db) {
         try {
-            const docRef = await db.collection('submissions').add(sanitized);
+            const docRef = await withTimeout(db.collection('submissions').add(sanitized));
             return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving submission:', error);
@@ -565,7 +673,7 @@ async function saveSubmission(submission) {
 async function deleteSubmission(id) {
     if (firestoreAvailable && db) {
         try {
-            await db.collection('submissions').doc(id).delete();
+            await withTimeout(db.collection('submissions').doc(id).delete());
             return true;
         } catch (error) {
             console.error('Error deleting submission:', error);
@@ -585,12 +693,16 @@ async function checkStudentAttempt(groupSlug, studentName) {
     const cleanName = sanitizeString(studentName);
     const cleanNameLower = cleanName.toLowerCase();
     
+    if (!validateStudentName(cleanName)) {
+        return false;
+    }
+    
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('submissions')
+            const snapshot = await withTimeout(db.collection('submissions')
                 .where('groupSlug', '==', cleanSlug)
                 .where('studentNameLower', '==', cleanNameLower)
-                .get();
+                .get());
             return !snapshot.empty;
         } catch (error) {
             console.error('Error checking attempt:', error);
@@ -610,7 +722,7 @@ async function saveCheatReport(report) {
     
     if (firestoreAvailable && db) {
         try {
-            const docRef = await db.collection('cheats').add(sanitized);
+            const docRef = await withTimeout(db.collection('cheats').add(sanitized));
             return { id: docRef.id, ...sanitized };
         } catch (error) {
             console.error('Error saving cheat report:', error);
@@ -625,9 +737,9 @@ async function saveCheatReport(report) {
 async function getCheatReports() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('cheats')
+            const snapshot = await withTimeout(db.collection('cheats')
                 .orderBy('timestamp', 'desc')
-                .get();
+                .get());
             if (!snapshot.empty) {
                 return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
@@ -642,10 +754,10 @@ async function getCheatReports() {
 async function clearCheatReports() {
     if (firestoreAvailable && db) {
         try {
-            const snapshot = await db.collection('cheats').get();
+            const snapshot = await withTimeout(db.collection('cheats').get());
             const batch = db.batch();
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
+            await withTimeout(batch.commit());
             return true;
         } catch (error) {
             console.error('Error clearing cheat reports:', error);
@@ -659,7 +771,7 @@ async function clearCheatReports() {
 async function deleteCheatReport(id) {
     if (firestoreAvailable && db) {
         try {
-            await db.collection('cheats').doc(id).delete();
+            await withTimeout(db.collection('cheats').doc(id).delete());
             return true;
         } catch (error) {
             console.error('Error deleting cheat report:', error);
@@ -672,24 +784,6 @@ async function deleteCheatReport(id) {
         return true;
     }
     return false;
-}
-
-// ========== MIDDLEWARE ==========
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ error: 'Access denied. No token provided.' });
-    }
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch (error) {
-        return res.status(403).json({ error: 'Invalid or expired token.' });
-    }
 }
 
 // ========== ROUTES ==========
@@ -706,7 +800,6 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         if (cleanUsername === ADMIN_USERNAME) {
             let isPasswordValid = false;
             
-            // استخدام bcrypt فقط
             if (ADMIN_PASSWORD_HASH) {
                 try {
                     isPasswordValid = await bcrypt.compare(cleanPassword, ADMIN_PASSWORD_HASH);
@@ -752,6 +845,10 @@ app.post('/api/groups', authenticateToken, isAdmin, async (req, res) => {
         
         if (!cleanName || cleanName.length < 2) {
             return res.status(400).json({ error: 'Group name must be at least 2 characters' });
+        }
+        
+        if (!validator.matches(cleanName, /^[\u0600-\u06FFa-zA-Z\s-]+$/)) {
+            return res.status(400).json({ error: 'Invalid group name format' });
         }
         
         const slug = sanitizeSlug(cleanName);
@@ -836,6 +933,12 @@ app.post('/api/exams', authenticateToken, isAdmin, async (req, res) => {
     try {
         const { groupId, groupSlug, questions } = req.body;
         
+        // التحقق من وجود المجموعة
+        const group = await getGroupById(groupId);
+        if (!group) {
+            return res.status(404).json({ error: 'Group not found' });
+        }
+        
         if (!groupId || !groupSlug) {
             return res.status(400).json({ error: 'Group ID and slug required' });
         }
@@ -848,6 +951,9 @@ app.post('/api/exams', authenticateToken, isAdmin, async (req, res) => {
         for (let q of questions) {
             if (!q.text || q.text.length < 3) {
                 return res.status(400).json({ error: 'Each question must have text' });
+            }
+            if (validator.contains(q.text, ['<', '>', '{', '}', '$', ';', "'", '"'])) {
+                return res.status(400).json({ error: 'Invalid characters in question' });
             }
             if (!q.options || q.options.length !== 4) {
                 return res.status(400).json({ error: 'Each question must have exactly 4 options' });
@@ -901,6 +1007,12 @@ app.put('/api/exams/:id/group', authenticateToken, isAdmin, async (req, res) => 
         const { id } = req.params;
         const { groupId, groupSlug } = req.body;
         
+        // التحقق من وجود المجموعة الجديدة
+        const group = await getGroupById(groupId);
+        if (!group) {
+            return res.status(404).json({ error: 'Group not found' });
+        }
+        
         if (!groupId || !groupSlug) {
             return res.status(400).json({ error: 'Group ID and slug required' });
         }
@@ -940,6 +1052,9 @@ app.put('/api/exams/:id/questions', authenticateToken, isAdmin, async (req, res)
         for (let q of questions) {
             if (!q.text || q.text.length < 3) {
                 return res.status(400).json({ error: 'Each question must have text' });
+            }
+            if (validator.contains(q.text, ['<', '>', '{', '}', '$', ';', "'", '"'])) {
+                return res.status(400).json({ error: 'Invalid characters in question' });
             }
             if (!q.options || q.options.length !== 4) {
                 return res.status(400).json({ error: 'Each question must have exactly 4 options' });
@@ -1014,7 +1129,7 @@ app.get('/api/exam/:slug', async (req, res) => {
     }
 });
 
-app.post('/api/submit-exam', async (req, res) => {
+app.post('/api/submit-exam', submitLimiter, async (req, res) => {
     try {
         const { groupSlug, studentName, answers, cheatLog } = req.body;
         
@@ -1168,7 +1283,7 @@ app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.get('/dashboard', authenticateToken, (req, res) => {
+app.get('/dashboard', authenticateToken, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
