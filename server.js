@@ -400,6 +400,21 @@ app.delete('/api/groups/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// === التحقق من وجود مجموعة ===
+app.get('/api/group/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const group = await getGroupBySlug(slug);
+        if (group) {
+            res.json({ exists: true, group });
+        } else {
+            res.status(404).json({ exists: false });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // === Exams ===
 app.get('/api/exams', authenticateToken, async (req, res) => {
     try {
