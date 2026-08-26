@@ -492,19 +492,6 @@
             margin: 1rem 0;
         }
 
-        /* Anti-cheat warning */
-        .cheat-warning {
-            background: #fde8e8;
-            border: 2px solid #e74c3c;
-            color: #c0392b;
-            padding: 10px 15px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 15px;
-            display: none;
-            font-weight: 600;
-        }
-
         @media (max-width: 500px) {
             .nav-bar {
                 flex-direction: column;
@@ -584,7 +571,6 @@
 
     <!-- ====== Quiz Area ====== -->
     <div id="quizArea">
-        <div class="cheat-warning" id="cheatWarning">⚠️ تم اكتشاف محاولة غش! سيتم إبلاغ المدرس.</div>
         <div class="exam-header">
             <div class="group-name" id="groupNameDisplay">Quiz Mr. Medhat</div>
             <div class="exam-info" id="examInfoDisplay"></div>
@@ -623,7 +609,6 @@
         </div>
         <div class="report-actions">
             <button class="btn btn-report" id="shareReportBtn">عرض التقرير</button>
-            <!-- تم إزالة زر إعادة الاختبار -->
         </div>
         <div id="shareReportBox" class="share-report-box hidden"></div>
     </div>
@@ -658,7 +643,6 @@
         const groupNameDisplay = document.getElementById('groupNameDisplay');
         const examInfoDisplay = document.getElementById('examInfoDisplay');
         const attemptError = document.getElementById('attemptError');
-        const cheatWarning = document.getElementById('cheatWarning');
 
         // ====== متغيرات ======
         let userName = '';
@@ -679,11 +663,7 @@
             const timestamp = new Date().toISOString();
             cheatLog.push({ eventType, details, timestamp });
             
-            // إظهار تحذير للطالب
-            cheatWarning.style.display = 'block';
-            cheatWarning.textContent = '⚠️ تم اكتشاف محاولة غش! سيتم إبلاغ المدرس.';
-            
-            // إرسال التقرير فوراً إلى الداشبورد
+            // إرسال التقرير فوراً إلى الداشبورد (بدون إظهار أي رسالة للطالب)
             sendCheatReport(eventType, details);
         }
 
@@ -709,7 +689,65 @@
             }
         }
 
-        // منع النسخ
+        // ====== كشف الـ ScreenShot ======
+        // 1. كشف استخدام PrintScreen (keydown)
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                // كشف زر Print Screen
+                if (e.key === 'PrintScreen') {
+                    logCheatEvent('screenshot', 'محاولة استخدام PrintScreen');
+                    e.preventDefault();
+                    return false;
+                }
+                // كشف Ctrl+Shift+S (بعض برامج التصوير)
+                if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+                    logCheatEvent('screenshot', 'محاولة استخدام Ctrl+Shift+S');
+                    e.preventDefault();
+                    return false;
+                }
+                // كشف Windows+Shift+S (أداة القطع في ويندوز)
+                if (e.metaKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+                    logCheatEvent('screenshot', 'محاولة استخدام Windows+Shift+S');
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
+
+        // 2. كشف فقدان التركيز (قد يكون فتح أداة تصوير)
+        document.addEventListener('blur', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                // تأخير بسيط للتأكد من أنها ليست مجرد تنقل بين الحقول
+                setTimeout(() => {
+                    if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                        return; // المستخدم في حقل الإدخال
+                    }
+                    // قد يكون فتح أداة تصوير أو برنامج آخر
+                    if (!document.hasFocus()) {
+                        logCheatEvent('screenshot', 'فقدان التركيز - قد يكون فتح أداة تصوير');
+                    }
+                }, 500);
+            }
+        });
+
+        // 3. كشف تغيير حجم النافذة بشكل مفاجئ (قد يكون فتح أداة تصوير)
+        let lastWindowSize = { width: window.innerWidth, height: window.innerHeight };
+        window.addEventListener('resize', function() {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                const currentWidth = window.innerWidth;
+                const currentHeight = window.innerHeight;
+                const diffWidth = Math.abs(currentWidth - lastWindowSize.width);
+                const diffHeight = Math.abs(currentHeight - lastWindowSize.height);
+                
+                // إذا كان التغيير كبيراً (أكثر من 100 بكسل) قد يكون فتح أداة تصوير
+                if (diffWidth > 100 || diffHeight > 100) {
+                    logCheatEvent('screenshot', 'تغيير مفاجئ في حجم النافذة - قد يكون فتح أداة تصوير');
+                }
+                lastWindowSize = { width: currentWidth, height: currentHeight };
+            }
+        });
+
+        // 4. منع النسخ
         document.addEventListener('copy', function(e) {
             if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
                 logCheatEvent('copy', 'محاولة نسخ النص');
@@ -718,7 +756,7 @@
             }
         });
 
-        // منع القص
+        // 5. منع القص
         document.addEventListener('cut', function(e) {
             if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
                 logCheatEvent('cut', 'محاولة قص النص');
@@ -727,7 +765,7 @@
             }
         });
 
-        // منع النقر بزر الماوس الأيمن
+        // 6. منع النقر بزر الماوس الأيمن
         document.addEventListener('contextmenu', function(e) {
             if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
                 logCheatEvent('right_click', 'محاولة فتح قائمة السياق');
@@ -736,7 +774,7 @@
             }
         });
 
-        // منع اختصارات لوحة المفاتيح
+        // 7. منع اختصارات لوحة المفاتيح
         document.addEventListener('keydown', function(e) {
             if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
                 // Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+U, Ctrl+S, F12
@@ -748,26 +786,14 @@
             }
         });
 
-        // كشف الخروج من الموقع
+        // 8. كشف الخروج من الموقع
         document.addEventListener('visibilitychange', function() {
             if (document.hidden && document.getElementById('quizArea').style.display === 'block' && !submitted) {
                 logCheatEvent('tab_switch', 'الخروج من علامة التبويب');
             }
         });
 
-        // كشف تغيير حجم النافذة (قد يدل على محاولة تصوير)
-        let windowSizeChangeCount = 0;
-        window.addEventListener('resize', function() {
-            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
-                windowSizeChangeCount++;
-                if (windowSizeChangeCount > 5) {
-                    logCheatEvent('window_resize', 'تغيير متكرر لحجم النافذة');
-                    windowSizeChangeCount = 0;
-                }
-            }
-        });
-
-        // منع التحديد
+        // 9. منع التحديد
         document.addEventListener('selectstart', function(e) {
             if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
                 e.preventDefault();
@@ -898,13 +924,12 @@
             currentIndex = 0;
             submitted = false;
             cheatLog = [];
-            windowSizeChangeCount = 0;
+            lastWindowSize = { width: window.innerWidth, height: window.innerHeight };
             
             nameEntryScreen.style.display = 'none';
             quizArea.style.display = 'block';
             resultsArea.style.display = 'none';
             attemptError.style.display = 'none';
-            cheatWarning.style.display = 'none';
             
             quizContent.style.display = 'block';
             emptyQuizMessage.style.display = 'none';
