@@ -19,7 +19,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_123456789';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// ========== تهيئة Firebase ==========
+// ========== Firebase Initialization ==========
 let db = null;
 let firestoreAvailable = false;
 
@@ -32,13 +32,13 @@ try {
         });
         db = admin.firestore();
         firestoreAvailable = true;
-        console.log('✅ Firebase initialized successfully');
+        console.log('Firebase initialized successfully');
     } else {
-        console.warn('⚠️ FIREBASE_CONFIG not found. Using in-memory storage');
+        console.warn('FIREBASE_CONFIG not found. Using in-memory storage');
     }
 } catch (error) {
-    console.error('❌ Firebase initialization error:', error.message);
-    console.warn('⚠️ Falling back to in-memory storage');
+    console.error('Firebase initialization error:', error.message);
+    console.warn('Falling back to in-memory storage');
 }
 
 // ========== IN-MEMORY FALLBACK ==========
@@ -166,7 +166,7 @@ async function deleteExam(id) {
 async function getExamByGroupSlug(slug) {
     if (firestoreAvailable && db) {
         try {
-            console.log('🔍 Looking for exam with slug:', slug);
+            console.log('Looking for exam with slug:', slug);
             const snapshot = await db.collection('exams')
                 .where('groupSlug', '==', slug)
                 .where('isPublished', '==', true)
@@ -175,10 +175,10 @@ async function getExamByGroupSlug(slug) {
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
                 const exam = { id: doc.id, ...doc.data() };
-                console.log('✅ Exam found:', exam.id);
+                console.log('Exam found:', exam.id);
                 return exam;
             }
-            console.log('❌ No published exam found for slug:', slug);
+            console.log('No published exam found for slug:', slug);
         } catch (error) {
             console.error('Error fetching exam by slug:', error);
         }
@@ -206,7 +206,7 @@ async function updateExamPublish(id, isPublished) {
 
 // === Questions ===
 async function getQuestionsByExamId(examId) {
-    console.log('🔍 getQuestionsByExamId called with examId:', examId);
+    console.log('getQuestionsByExamId called with examId:', examId);
     
     if (firestoreAvailable && db) {
         try {
@@ -214,7 +214,7 @@ async function getQuestionsByExamId(examId) {
                 .where('examId', '==', examId)
                 .get();
             
-            console.log('📄 Firestore returned:', snapshot.size, 'questions');
+            console.log('Firestore returned:', snapshot.size, 'questions');
             
             if (!snapshot.empty) {
                 const questions = snapshot.docs.map(doc => ({ 
@@ -222,24 +222,24 @@ async function getQuestionsByExamId(examId) {
                     ...doc.data() 
                 }));
                 questions.sort((a, b) => (a.id || 0) - (b.id || 0));
-                console.log('✅ Questions loaded:', questions.length);
+                console.log('Questions loaded:', questions.length);
                 return questions;
             }
             
-            console.log('⚠️ No questions found with examId:', examId);
+            console.log('No questions found with examId:', examId);
             return [];
         } catch (error) {
-            console.error('❌ Error in getQuestionsByExamId:', error);
+            console.error('Error in getQuestionsByExamId:', error);
             return [];
         }
     }
     
-    console.log('📄 Using in-memory questions');
+    console.log('Using in-memory questions');
     return inMemoryData.questions.filter(q => q.examId == examId);
 }
 
 async function saveQuestions(questions) {
-    console.log('💾 Saving questions:', questions.length);
+    console.log('Saving questions:', questions.length);
     
     if (firestoreAvailable && db) {
         try {
@@ -251,7 +251,7 @@ async function saveQuestions(questions) {
                     .where('examId', '==', examId)
                     .get();
                 existing.docs.forEach(doc => batch.delete(doc.ref));
-                console.log('🗑️ Deleted', existing.size, 'old questions');
+                console.log('Deleted', existing.size, 'old questions');
             }
             
             questions.forEach((q, index) => {
@@ -262,14 +262,14 @@ async function saveQuestions(questions) {
                     examId: examId
                 };
                 batch.set(docRef, data);
-                console.log('📝 Adding question', index + 1, ':', data.text);
+                console.log('Adding question', index + 1, ':', data.text);
             });
             
             await batch.commit();
-            console.log('✅ Questions saved successfully');
+            console.log('Questions saved successfully');
             return true;
         } catch (error) {
-            console.error('❌ Error saving questions:', error);
+            console.error('Error saving questions:', error);
             return false;
         }
     }
@@ -385,7 +385,7 @@ function authenticateToken(req, res, next) {
 
 // ========== ROUTES ==========
 
-// === تسجيل الدخول ===
+// === Login ===
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
@@ -435,7 +435,7 @@ app.delete('/api/groups/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// === التحقق من وجود مجموعة ===
+// === Check if group exists ===
 app.get('/api/group/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -521,7 +521,7 @@ app.delete('/api/exams/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// === تعديل أسئلة الامتحان ===
+// === Edit exam questions ===
 app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
     try {
         const examId = req.params.id;
@@ -531,10 +531,10 @@ app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'No questions provided' });
         }
 
-        // حذف الأسئلة القديمة
+        // Delete old questions
         await deleteQuestionsByExamId(examId);
         
-        // إضافة الأسئلة الجديدة
+        // Add new questions
         const examQuestions = questions.map((q, idx) => ({
             ...q,
             id: idx + 1,
@@ -543,7 +543,7 @@ app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
         
         const saved = await saveQuestions(examQuestions);
         if (saved) {
-            // تحديث عدد الأسئلة في الامتحان
+            // Update question count in exam
             if (firestoreAvailable && db) {
                 await db.collection('exams').doc(examId).update({ questionsCount: questions.length });
             } else {
@@ -560,7 +560,7 @@ app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
     }
 });
 
-// === حذف سؤال منفرد ===
+// === Delete single question ===
 app.delete('/api/questions/:id', authenticateToken, async (req, res) => {
     try {
         const questionId = req.params.id;
@@ -581,28 +581,28 @@ app.delete('/api/questions/:id', authenticateToken, async (req, res) => {
 app.get('/api/exam/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
-        console.log('🔍 Looking for exam with slug:', slug);
+        console.log('Looking for exam with slug:', slug);
         
         const group = await getGroupBySlug(slug);
         if (!group) {
-            console.log('❌ Group not found:', slug);
+            console.log('Group not found:', slug);
             return res.status(404).json({ error: 'Group not found' });
         }
-        console.log('✅ Group found:', group.name);
+        console.log('Group found:', group.name);
         
         const exam = await getExamByGroupSlug(slug);
         if (!exam) {
-            console.log('❌ Exam not found or not published for slug:', slug);
+            console.log('Exam not found or not published for slug:', slug);
             return res.status(404).json({ error: 'Exam not found or not published' });
         }
-        console.log('✅ Exam found:', exam.id, 'isPublished:', exam.isPublished);
+        console.log('Exam found:', exam.id, 'isPublished:', exam.isPublished);
         
         const questions = await getQuestionsByExamId(exam.id);
-        console.log('📄 Questions returned:', questions.length);
+        console.log('Questions returned:', questions.length);
         
         res.json({ exam, questions });
     } catch (error) {
-        console.error('❌ Error in /api/exam/:slug:', error);
+        console.error('Error in /api/exam/:slug:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -682,27 +682,27 @@ app.delete('/api/submissions/:id', authenticateToken, async (req, res) => {
 
 // ========== FRONTEND ROUTES ==========
 
-// الصفحة الرئيسية - تظهر 404
+// Home page - shows 404
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// صفحة المجموعة - تمرر الـ slug للـ frontend
+// Group page - passes slug to frontend
 app.get('/:groupSlug', (req, res) => {
     const slug = req.params.groupSlug;
     
-    // استثناء المسارات الخاصة
+    // Exclude special paths
     const reservedPaths = ['login', 'dashboard', 'api', 'favicon.ico', 'robots.txt'];
     if (reservedPaths.includes(slug) || slug.includes('.')) {
         return res.sendFile(path.join(__dirname, 'public', 'index.html'));
     }
     
-    // تمرير الـ slug للـ frontend عن طريق إرسال index.html
+    // Pass slug to frontend by sending index.html
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ========== تشغيل السيرفر ==========
+// ========== START SERVER ==========
 app.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
-    console.log(`📁 Firebase: ${firestoreAvailable ? '✅ Connected' : '❌ Not connected (using in-memory)'}`);
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Firebase: ${firestoreAvailable ? 'Connected' : 'Not connected (using in-memory)'}`);
 });
