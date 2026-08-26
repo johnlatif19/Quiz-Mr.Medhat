@@ -166,6 +166,7 @@ async function deleteExam(id) {
 async function getExamByGroupSlug(slug) {
     if (firestoreAvailable && db) {
         try {
+            console.log('🔍 Looking for exam with slug:', slug);
             const snapshot = await db.collection('exams')
                 .where('groupSlug', '==', slug)
                 .where('isPublished', '==', true)
@@ -173,8 +174,11 @@ async function getExamByGroupSlug(slug) {
                 .get();
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
-                return { id: doc.id, ...doc.data() };
+                const exam = { id: doc.id, ...doc.data() };
+                console.log('✅ Exam found:', exam.id);
+                return exam;
             }
+            console.log('❌ No published exam found for slug:', slug);
         } catch (error) {
             console.error('Error fetching exam by slug:', error);
         }
@@ -200,44 +204,91 @@ async function updateExamPublish(id, isPublished) {
     return false;
 }
 
-// === Questions ===
+// === Questions (نسخة محسنة) ===
 async function getQuestionsByExamId(examId) {
+    console.log('🔍 getQuestionsByExamId called with examId:', examId);
+    
     if (firestoreAvailable && db) {
         try {
+            // محاولة جلب الأسئلة المرتبطة بالامتحان
             const snapshot = await db.collection('questions')
                 .where('examId', '==', examId)
-                .orderBy('id')
                 .get();
+            
+            console.log('📄 Firestore returned:', snapshot.size, 'questions');
+            
             if (!snapshot.empty) {
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const questions = snapshot.docs.map(doc => ({ 
+                    id: doc.id, 
+                    ...doc.data() 
+                }));
+                // ترتيب حسب id
+                questions.sort((a, b) => (a.id || 0) - (b.id || 0));
+                console.log('✅ Questions loaded:', questions.length);
+                return questions;
             }
+            
+            // إذا لم يتم العثور على أسئلة، نحاول جلب جميع الأسئلة للتجربة
+            console.log('⚠️ No questions found with examId:', examId);
+            const allSnapshot = await db.collection('questions').limit(20).get();
+            console.log('📄 Total questions in DB:', allSnapshot.size);
+            
+            if (!allSnapshot.empty) {
+                const allQuestions = allSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log('📄 Sample question:', JSON.stringify(allQuestions[0]));
+            }
+            
+            return [];
         } catch (error) {
-            console.error('Error fetching questions:', error);
+            console.error('❌ Error in getQuestionsByExamId:', error);
+            return [];
         }
     }
+    
+    // Fallback to in-memory
+    console.log('📄 Using in-memory questions');
     return inMemoryData.questions.filter(q => q.examId == examId);
 }
 
 async function saveQuestions(questions) {
+    console.log('💾 Saving questions:', questions.length);
+    
     if (firestoreAvailable && db) {
         try {
             const batch = db.batch();
-            // First delete existing questions for this exam
-            const existing = await db.collection('questions').where('examId', '==', questions[0]?.examId).get();
-            existing.docs.forEach(doc => batch.delete(doc.ref));
+            const examId = questions[0]?.examId;
             
-            // Add new questions
-            questions.forEach(q => {
+            if (examId) {
+                // حذف الأسئلة القديمة
+                const existing = await db.collection('questions')
+                    .where('examId', '==', examId)
+                    .get();
+                existing.docs.forEach(doc => batch.delete(doc.ref));
+                console.log('🗑️ Deleted', existing.size, 'old questions');
+            }
+            
+            // إضافة الأسئلة الجديدة
+            questions.forEach((q, index) => {
                 const docRef = db.collection('questions').doc();
-                batch.set(docRef, q);
+                const data = {
+                    ...q,
+                    id: index + 1,
+                    examId: examId
+                };
+                batch.set(docRef, data);
+                console.log('📝 Adding question', index + 1, ':', data.text);
             });
+            
             await batch.commit();
+            console.log('✅ Questions saved successfully');
             return true;
         } catch (error) {
-            console.error('Error saving questions:', error);
+            console.error('❌ Error saving questions:', error);
             return false;
         }
     }
+    
+    // Fallback
     inMemoryData.questions = inMemoryData.questions.filter(q => q.examId != questions[0]?.examId);
     questions.forEach(q => {
         if (!q.id) q.id = nextId++;
@@ -377,7 +428,6 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
         
         const slug = name.toLowerCase().trim().replace(/\s+/g, '-');
         
-        // Check if group already exists
         const existing = await getGroupBySlug(slug);
         if (existing) {
             return res.status(400).json({ error: 'Group with this name already exists' });
@@ -441,7 +491,7 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
             groupId,
             groupSlug,
             questionsCount: questions.length,
-            isPublished: false,
+            isPublished: true, // ✅ منشور تلقائياً
             createdAt: new Date().toISOString()
         };
 
@@ -486,26 +536,34 @@ app.delete('/api/exams/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// === Student Exam ===
+// === Student Exam (محسّن مع logs) ===
 app.get('/api/exam/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
+        console.log('🔍 Looking for exam with slug:', slug);
         
         // Check if group exists
         const group = await getGroupBySlug(slug);
         if (!group) {
+            console.log('❌ Group not found:', slug);
             return res.status(404).json({ error: 'Group not found' });
         }
+        console.log('✅ Group found:', group.name);
         
         // Check if exam exists and is published
         const exam = await getExamByGroupSlug(slug);
         if (!exam) {
+            console.log('❌ Exam not found or not published for slug:', slug);
             return res.status(404).json({ error: 'Exam not found or not published' });
         }
+        console.log('✅ Exam found:', exam.id, 'isPublished:', exam.isPublished);
         
         const questions = await getQuestionsByExamId(exam.id);
+        console.log('📄 Questions returned:', questions.length);
+        
         res.json({ exam, questions });
     } catch (error) {
+        console.error('❌ Error in /api/exam/:slug:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -518,7 +576,6 @@ app.post('/api/submit-exam', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Check if student already attempted
         const hasAttempted = await checkStudentAttempt(groupSlug, studentName);
         if (hasAttempted) {
             return res.status(409).json({ error: 'You have already taken this exam' });
