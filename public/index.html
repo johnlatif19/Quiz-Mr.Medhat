@@ -663,6 +663,7 @@
         let currentIndex = 0;
         let submitted = false;
         let examId = null;
+        let hasAttempted = false;
 
         // ====== عرض صفحة 404 ======
         function show404Page() {
@@ -772,6 +773,20 @@
                 return;
             }
 
+            // التحقق من أن الطالب لم يختبر من قبل
+            try {
+                const checkResponse = await fetch(`${API_URL}/api/check-attempt/${groupSlug}/${encodeURIComponent(userName)}`);
+                const checkData = await checkResponse.json();
+                if (checkData.hasAttempted) {
+                    attemptError.textContent = 'لقد قمت بالفعل بتأدية هذا الاختبار. لا يمكنك إعادة المحاولة.';
+                    attemptError.style.display = 'block';
+                    return;
+                }
+            } catch (error) {
+                console.error('Error checking attempt:', error);
+            }
+
+            hasAttempted = false;
             answers = new Array(questions.length).fill(null);
             currentIndex = 0;
             submitted = false;
@@ -863,12 +878,14 @@
 
                 if (response.status === 409) {
                     alert('لقد قمت بالفعل بتأدية هذا الاختبار. لا يمكنك إعادة المحاولة.');
+                    hasAttempted = true;
                     displayLocalResults();
                     return;
                 }
 
                 const result = await response.json();
                 if (result.success) {
+                    hasAttempted = true;
                     displayResults(result.submission);
                 } else {
                     displayLocalResults();
@@ -912,9 +929,10 @@
             const performance = score >= 80 ? 'ممتاز' : score >= 60 ? 'جيد' : score >= 40 ? 'مقبول' : 'يحتاج تحسين';
 
             let reviewHtml = '';
+            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
             results.forEach((r, i) => {
-                const selectedLetter = r.selected !== null ? String.fromCharCode(65 + r.selected) : '—';
-                const correctLetter = String.fromCharCode(65 + r.correct);
+                const selectedLetter = r.selected !== null ? letters[r.selected] : '—';
+                const correctLetter = letters[r.correct];
                 const isCorrect = r.isCorrect;
                 const isWrong = r.selected !== null && !r.isCorrect;
                 const isUnanswered = r.selected === null;
@@ -924,7 +942,7 @@
                 else cls += ' unanswered';
 
                 reviewHtml += `<div class="${cls}">
-                    <span class="q-preview">س${i+1}</span>
+                    <span class="q-preview">Q${i+1}</span>
                     <span class="answer-detail">
                         ${isCorrect ? '✓' : isWrong ? '✗' : '—'}
                         إجابتك: <span class="student-ans">${selectedLetter}</span>
@@ -952,7 +970,7 @@
             shareReportBox.classList.add('hidden');
 
             let reportLines = [];
-            reportLines.push('تقرير اختبار القواعد');
+            reportLines.push('تقرير Quiz Mr.Medhat');
             reportLines.push(`الاسم: ${result.studentName || userName}`);
             reportLines.push(`المجموعة: ${result.groupSlug || groupSlug}`);
             reportLines.push(`النتيجة: ${correct} / ${total} (${score}%)`);
@@ -964,9 +982,9 @@
             results.forEach((r, i) => {
                 if (r.selected !== null && !r.isCorrect) {
                     hasWrong = true;
-                    const selectedLetter = String.fromCharCode(65 + r.selected);
-                    const correctLetter = String.fromCharCode(65 + r.correct);
-                    reportLines.push(`س${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
+                    const selectedLetter = letters[r.selected];
+                    const correctLetter = letters[r.correct];
+                    reportLines.push(`Q${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
                 }
             });
             if (!hasWrong) reportLines.push('جميع الإجابات صحيحة!');
@@ -986,6 +1004,10 @@
 
         // ====== إعادة الاختبار ======
         restartBtn.addEventListener('click', function() {
+            if (hasAttempted) {
+                alert('لقد قمت بالفعل بتأدية هذا الاختبار. لا يمكنك إعادة المحاولة.');
+                return;
+            }
             if (!confirm('إعادة الاختبار؟ سيتم فقدان التقدم الحالي.')) return;
             answers.fill(null);
             submitted = false;
