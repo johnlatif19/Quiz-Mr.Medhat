@@ -147,7 +147,7 @@
             background: white;
             border-radius: 12px;
             padding: 30px;
-            max-width: 700px;
+            max-width: 900px;
             width: 95%;
             max-height: 90vh;
             overflow-y: auto;
@@ -238,6 +238,27 @@
             display: flex;
             gap: 8px;
             margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Cheat alert */
+        .cheat-alert {
+            background: #fde8e8;
+            border: 2px solid #e74c3c;
+            padding: 8px 15px;
+            border-radius: 6px;
+            color: #c0392b;
+            font-weight: 600;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        .cheat-badge {
+            background: #e74c3c;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
         }
 
         .badge {
@@ -257,6 +278,8 @@
             padding: 8px 12px;
             border-bottom: 1px solid #e8edf3;
             font-size: 14px;
+            flex-wrap: wrap;
+            gap: 5px;
         }
         .answer-detail-item .q-text { flex: 1; margin-right: 10px; }
         .answer-detail-item .user-ans { font-weight: 600; margin: 0 10px; }
@@ -271,23 +294,57 @@
             margin: 3px;
         }
 
-        .editing-row input, .editing-row select {
-            padding: 4px 8px;
-            border: 2px solid #f39c12;
+        /* Full exam view in modal */
+        .full-exam-question {
+            background: #f7f9fc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #e8edf3;
+        }
+        .full-exam-question .q-text {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+        .full-exam-question .options-show {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .full-exam-question .options-show .opt-item {
+            padding: 4px 12px;
             border-radius: 4px;
+            border: 1px solid #dce4ec;
             font-size: 13px;
         }
-        .editing-row input:focus, .editing-row select:focus {
-            outline: none;
-            border-color: #e67e22;
+        .full-exam-question .options-show .opt-item.correct-opt {
+            background: #d4edda;
+            border-color: #27ae60;
         }
-        .options-edit-container input {
-            display: block;
-            width: 100%;
-            margin: 2px 0;
-            padding: 2px 6px;
-            border: 1px solid #dce4ec;
-            border-radius: 4px;
+        .full-exam-question .options-show .opt-item.student-opt {
+            background: #fde8e8;
+            border-color: #e74c3c;
+        }
+        .full-exam-question .options-show .opt-item.both-opt {
+            background: #d4edda;
+            border-color: #27ae60;
+            border-width: 3px;
+        }
+
+        /* Live cheating alerts */
+        .cheat-notification {
+            background: #fff3cd;
+            border: 1px solid #f39c12;
+            padding: 8px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .cheat-notification .cheat-time {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-left: 10px;
         }
 
         @media (max-width: 768px) {
@@ -306,6 +363,7 @@
             <h1>Quiz <span>Mr. Medhat</span> - لوحة التحكم</h1>
             <div class="user-info">
                 <span id="userDisplay">مرحباً، Mr.Medhat</span>
+                <span id="cheatCount" style="background:#e74c3c;color:white;padding:2px 12px;border-radius:20px;font-size:13px;">🚨 0</span>
                 <button class="btn-logout" onclick="logout()">خروج</button>
             </div>
         </div>
@@ -315,6 +373,7 @@
             <button class="tab-btn active" data-tab="groups">المجموعات</button>
             <button class="tab-btn" data-tab="exams">الامتحانات</button>
             <button class="tab-btn" data-tab="submissions">نتائج الطلاب</button>
+            <button class="tab-btn" data-tab="cheats" style="border-color:#e74c3c;color:#e74c3c;">🚨 محاولات الغش</button>
         </div>
 
         <!-- Tab: Groups -->
@@ -356,6 +415,19 @@
                 </div>
                 <div id="submissionsContainer">
                     <div class="empty-state">جاري تحميل النتائج...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Cheats -->
+        <div id="cheatsTab" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    <span>🚨 محاولات الغش</span>
+                    <button class="btn btn-danger" onclick="clearCheats()" id="clearCheatsBtn">مسح الكل</button>
+                </div>
+                <div id="cheatsContainer">
+                    <div class="empty-state">جاري تحميل محاولات الغش...</div>
                 </div>
             </div>
         </div>
@@ -414,6 +486,12 @@
             </div>
             <form id="editExamForm" onsubmit="updateExam(event)">
                 <input type="hidden" id="editExamId">
+                <div class="form-group">
+                    <label>تغيير المجموعة</label>
+                    <select id="editExamGroupSelect" style="width:100%;padding:8px 12px;border:2px solid #dce4ec;border-radius:6px;">
+                        <option value="">-- اختر مجموعة جديدة --</option>
+                    </select>
+                </div>
                 <div id="editQuestionsContainer"></div>
                 <div style="display:flex;gap:10px;margin-top:15px;">
                     <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
@@ -423,11 +501,11 @@
         </div>
     </div>
 
-    <!-- Modal: Student Answers -->
+    <!-- Modal: Student Answers (Full Exam View) -->
     <div class="modal" id="answersModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
-                <h2>إجابات الطالب</h2>
+                <h2>إجابات الطالب - عرض كامل</h2>
                 <button class="modal-close" onclick="closeModal('answersModal')">×</button>
             </div>
             <div id="answersContent"></div>
@@ -455,6 +533,7 @@
                 if (this.dataset.tab === 'groups') loadGroups();
                 if (this.dataset.tab === 'exams') loadExams();
                 if (this.dataset.tab === 'submissions') loadSubmissions();
+                if (this.dataset.tab === 'cheats') loadCheats();
             });
         });
 
@@ -471,6 +550,77 @@
         function openModal(id) {
             document.getElementById(id).classList.add('active');
         }
+
+        // ========== WEBSOCKET / POLLING FOR REAL-TIME CHEATS ==========
+        let lastCheatId = 0;
+
+        async function loadCheats() {
+            const container = document.getElementById('cheatsContainer');
+            try {
+                const response = await fetch(`${API_URL}/api/cheats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                const data = await response.json();
+                
+                // تحديث العدد في الهيدر
+                document.getElementById('cheatCount').textContent = `🚨 ${data.length}`;
+                
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="empty-state">لا توجد محاولات غش مسجلة.</div>';
+                    return;
+                }
+
+                let html = '';
+                data.slice().reverse().forEach((cheat, index) => {
+                    const time = new Date(cheat.timestamp).toLocaleString('ar-EG');
+                    html += `
+                        <div class="cheat-notification">
+                            <strong>👤 ${cheat.studentName}</strong>
+                            <span style="margin:0 10px;">|</span>
+                            <span>📚 ${cheat.groupSlug}</span>
+                            <span style="margin:0 10px;">|</span>
+                            <span class="cheat-badge">${cheat.eventType}</span>
+                            <span style="margin:0 10px;">|</span>
+                            <span>${cheat.details}</span>
+                            <span class="cheat-time">${time}</span>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<div class="empty-state">حدث خطأ في تحميل محاولات الغش.</div>';
+                console.error(error);
+            }
+        }
+
+        async function clearCheats() {
+            if (!confirm('هل أنت متأكد من مسح جميع محاولات الغش؟')) return;
+            try {
+                await fetch(`${API_URL}/api/cheats`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                loadCheats();
+            } catch (error) {
+                alert('حدث خطأ في مسح محاولات الغش.');
+                console.error(error);
+            }
+        }
+
+        // تحديث محاولات الغش كل 5 ثواني
+        setInterval(() => {
+            if (document.getElementById('cheatsTab').classList.contains('active')) {
+                loadCheats();
+            } else {
+                // تحديث العدد فقط
+                fetch(`${API_URL}/api/cheats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json()).then(data => {
+                    document.getElementById('cheatCount').textContent = `🚨 ${data.length}`;
+                }).catch(() => {});
+            }
+        }, 5000);
 
         // ========== GROUPS ==========
         async function loadGroups() {
@@ -529,7 +679,7 @@
                 if (response.status === 401 || response.status === 403) { logout(); return; }
                 closeModal('addGroupModal');
                 loadGroups();
-                populateGroupSelect();
+                populateGroupSelects();
             } catch (error) {
                 alert('حدث خطأ في إضافة المجموعة.');
                 console.error(error);
@@ -545,7 +695,7 @@
                 });
                 if (response.status === 401 || response.status === 403) { logout(); return; }
                 loadGroups();
-                populateGroupSelect();
+                populateGroupSelects();
             } catch (error) {
                 alert('حدث خطأ في حذف المجموعة.');
                 console.error(error);
@@ -592,17 +742,22 @@
             }
         }
 
-        async function populateGroupSelect() {
+        async function populateGroupSelects() {
             try {
                 const response = await fetch(`${API_URL}/api/groups`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.status === 401 || response.status === 403) { logout(); return; }
                 const data = await response.json();
-                const select = document.getElementById('examGroupSelect');
-                select.innerHTML = '<option value="">-- اختر مجموعة --</option>';
-                data.forEach(g => {
-                    select.innerHTML += `<option value="${g.id}" data-slug="${g.slug}">${g.name}</option>`;
+                
+                ['examGroupSelect', 'editExamGroupSelect'].forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        select.innerHTML = '<option value="">-- اختر مجموعة --</option>';
+                        data.forEach(g => {
+                            select.innerHTML += `<option value="${g.id}" data-slug="${g.slug}">${g.name}</option>`;
+                        });
+                    }
                 });
             } catch (error) {
                 console.error(error);
@@ -610,7 +765,7 @@
         }
 
         function showCreateExam() {
-            populateGroupSelect();
+            populateGroupSelects();
             document.getElementById('examQuestionsContainer').innerHTML = '';
             document.getElementById('examQuestionCount').value = 5;
             updateQuestionFields();
@@ -716,7 +871,7 @@
             }
         }
 
-        // ====== تعديل الامتحان ======
+        // ====== تعديل الامتحان (مع إمكانية تغيير المجموعة) ======
         async function showEditExam(examId) {
             try {
                 const response = await fetch(`${API_URL}/api/exams`, {
@@ -728,15 +883,29 @@
                 if (!exam) { alert('لم يتم العثور على الامتحان.'); return; }
 
                 document.getElementById('editExamId').value = examId;
+                
+                // تعبئة select المجموعات
+                await populateGroupSelects();
+                const editGroupSelect = document.getElementById('editExamGroupSelect');
+                // تحديد المجموعة الحالية
+                const groupsResponse = await fetch(`${API_URL}/api/groups`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const groups = await groupsResponse.json();
+                const currentGroup = groups.find(g => g.id === exam.groupId);
+                if (currentGroup) {
+                    editGroupSelect.value = currentGroup.id;
+                }
+
                 const container = document.getElementById('editQuestionsContainer');
 
-                // جلب الأسئلة من API
+                // جلب الأسئلة
                 const questionsResponse = await fetch(`${API_URL}/api/exam/${exam.groupSlug}`);
                 const questionsData = await questionsResponse.json();
                 const questions = questionsData.questions || [];
 
                 let html = `<div style="margin-bottom:15px;padding:10px;background:#f7f9fc;border-radius:8px;">
-                    <strong>المجموعة:</strong> ${exam.groupName || exam.groupSlug}
+                    <strong>المجموعة الحالية:</strong> ${exam.groupName || exam.groupSlug}
                     <span style="margin-left:20px;"><strong>عدد الأسئلة:</strong> ${questions.length}</span>
                 </div>`;
 
@@ -774,7 +943,6 @@
                         `;
                     });
 
-                    // زر إضافة سؤال جديد
                     html += `
                         <button type="button" class="btn btn-success" onclick="addNewQuestionToEdit()" style="margin-top:10px;">+ إضافة سؤال جديد</button>
                         <div id="newQuestionContainer"></div>
@@ -784,6 +952,7 @@
                 container.innerHTML = html;
                 window._editExamQuestions = questions;
                 window._editExamId = examId;
+                window._editExamGroupId = exam.groupId;
                 openModal('editExamModal');
             } catch (error) {
                 alert('حدث خطأ في تحميل الامتحان للتعديل.');
@@ -831,13 +1000,11 @@
         async function deleteQuestionFromExam(examId, questionId) {
             if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
             try {
-                // حذف السؤال من قاعدة البيانات
                 const response = await fetch(`${API_URL}/api/questions/${questionId}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.status === 401 || response.status === 403) { logout(); return; }
-                // إعادة تحميل التعديل
                 showEditExam(examId);
             } catch (error) {
                 alert('حدث خطأ في حذف السؤال.');
@@ -848,9 +1015,9 @@
         async function updateExam(e) {
             e.preventDefault();
             const examId = document.getElementById('editExamId').value;
+            const newGroupId = document.getElementById('editExamGroupSelect').value;
             const questions = [];
             
-            // جمع الأسئلة الموجودة
             const existingQuestions = window._editExamQuestions || [];
             for (let i = 0; i < existingQuestions.length; i++) {
                 const text = document.getElementById(`edit_q_text_${i}`).value.trim();
@@ -865,7 +1032,6 @@
                 }
             }
 
-            // جمع الأسئلة الجديدة
             for (let i = 0; i < newQuestionCounter; i++) {
                 const textEl = document.getElementById(`new_q_text_${i}`);
                 if (!textEl) continue;
@@ -887,7 +1053,25 @@
             }
 
             try {
-                // حفظ الأسئلة المعدلة
+                // تحديث المجموعة إذا تغيرت
+                if (newGroupId && newGroupId !== window._editExamGroupId) {
+                    const groupsResponse = await fetch(`${API_URL}/api/groups`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const groups = await groupsResponse.json();
+                    const newGroup = groups.find(g => g.id === newGroupId);
+                    if (newGroup) {
+                        await fetch(`${API_URL}/api/exams/${examId}/group`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ groupId: newGroupId, groupSlug: newGroup.slug })
+                        });
+                    }
+                }
+
                 const response = await fetch(`${API_URL}/api/exams/${examId}/questions`, {
                     method: 'PUT',
                     headers: {
@@ -977,6 +1161,7 @@
 
                 let html = '';
                 data.forEach((sub) => {
+                    const hasCheats = sub.cheatLog && sub.cheatLog.length > 0;
                     html += `
                         <div class="submission-item">
                             <div class="info">
@@ -984,11 +1169,18 @@
                                 <span class="group">المجموعة: ${sub.groupSlug || 'بدون مجموعة'}</span>
                                 <span class="score">${sub.correct || 0} / ${sub.total || 0} (${sub.score || 0}%)</span>
                                 <span style="font-size: 13px; color: #7f8c8d;">${new Date(sub.timestamp).toLocaleString('ar-EG')}</span>
+                                ${hasCheats ? '<span class="cheat-badge">⚠️ غش</span>' : ''}
                             </div>
                             <div class="actions">
-                                <button class="btn btn-primary btn-sm" onclick="showStudentAnswers('${sub.id}')">إجابات الطالب</button>
+                                <button class="btn btn-primary btn-sm" onclick="showStudentAnswers('${sub.id}')">📖 عرض الامتحان كامل</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteSubmission('${sub.id}')">حذف</button>
                             </div>
+                            ${hasCheats ? `
+                                <div class="cheat-alert">
+                                    ⚠️ تم تسجيل ${sub.cheatLog.length} محاولة غش:
+                                    ${sub.cheatLog.map(c => `${c.eventType} (${new Date(c.timestamp).toLocaleTimeString()})`).join(' | ')}
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 });
@@ -999,6 +1191,7 @@
             }
         }
 
+        // ====== عرض إجابات الطالب (الامتحان كامل) ======
         async function showStudentAnswers(id) {
             try {
                 const response = await fetch(`${API_URL}/api/submissions`, {
@@ -1010,28 +1203,47 @@
                 if (!submission) { alert('لم يتم العثور على النتائج.'); return; }
 
                 const container = document.getElementById('answersContent');
+                const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
                 let html = `
-                    <div style="margin-bottom:15px;">
-                        <strong>الطالب:</strong> ${submission.studentName}<br>
-                        <strong>المجموعة:</strong> ${submission.groupSlug}<br>
-                        <strong>النتيجة:</strong> ${submission.correct} / ${submission.total} (${submission.score}%)
+                    <div style="margin-bottom:15px;padding:15px;background:#f7f9fc;border-radius:8px;">
+                        <strong>👤 الطالب:</strong> ${submission.studentName}<br>
+                        <strong>📚 المجموعة:</strong> ${submission.groupSlug}<br>
+                        <strong>📊 النتيجة:</strong> ${submission.correct} / ${submission.total} (${submission.score}%)
+                        ${submission.cheatLog && submission.cheatLog.length > 0 ? `<br><strong>⚠️ محاولات غش:</strong> ${submission.cheatLog.length}` : ''}
                     </div>
-                    <hr style="margin:10px 0;">
+                    <hr style="margin:10px 0 20px 0;">
                 `;
 
                 if (submission.results && submission.results.length > 0) {
                     submission.results.forEach((r, i) => {
-                        const userLetter = r.userAnswer !== null ? String.fromCharCode(65 + r.userAnswer) : '—';
-                        const correctLetter = String.fromCharCode(65 + r.correctAnswer);
-                        const isCorrect = r.isCorrect;
+                        const userAns = r.userAnswer !== null && r.userAnswer !== undefined ? r.userAnswer : -1;
+                        const correctAns = r.correctAnswer;
+                        const userLetter = userAns >= 0 ? letters[userAns] : '—';
+                        const correctLetter = correctAns >= 0 ? letters[correctAns] : '—';
+                        const isCorrect = r.isCorrect === true;
+                        
                         html += `
-                            <div class="answer-detail-item" style="${isCorrect ? 'background:#f2faf5;' : 'background:#fdf3f3;'}">
-                                <span class="q-text">${i+1}. ${r.questionText || 'سؤال'}</span>
-                                <span class="user-ans" style="${isCorrect ? 'color:#27ae60;' : 'color:#e74c3c;'}">
-                                    إجابتك: ${userLetter}
-                                </span>
-                                ${!isCorrect ? `<span class="correct-ans">الصحيح: ${correctLetter}</span>` : ''}
-                                <span>${isCorrect ? 'صح' : 'خطأ'}</span>
+                            <div class="full-exam-question" style="${isCorrect ? 'border-left:4px solid #27ae60;' : 'border-left:4px solid #e74c3c;'}">
+                                <div class="q-text">${i+1}. ${r.questionText || 'سؤال'}</div>
+                                <div class="options-show">
+                                    ${r.options.map((opt, oi) => {
+                                        let cls = 'opt-item';
+                                        const isCorrectOpt = oi === correctAns;
+                                        const isUserOpt = oi === userAns;
+                                        if (isCorrectOpt && isUserOpt) cls += ' both-opt';
+                                        else if (isCorrectOpt) cls += ' correct-opt';
+                                        else if (isUserOpt) cls += ' student-opt';
+                                        return `<span class="${cls}">${letters[oi]}. ${opt}</span>`;
+                                    }).join('')}
+                                </div>
+                                <div style="margin-top:8px;font-size:14px;">
+                                    ${isCorrect 
+                                        ? '<span style="color:#27ae60;">✅ إجابة صحيحة</span>' 
+                                        : userAns >= 0 
+                                            ? `<span style="color:#e74c3c;">❌ إجابة خاطئة (إجابتك: ${userLetter} | الصحيح: ${correctLetter})</span>`
+                                            : `<span style="color:#f39c12;">⬜ لم يجب (الصحيح: ${correctLetter})</span>`
+                                    }
+                                </div>
                             </div>
                         `;
                     });
@@ -1066,8 +1278,9 @@
         loadGroups();
         loadExams();
         loadSubmissions();
+        loadCheats();
         populateFilterGroups();
-        populateGroupSelect();
+        populateGroupSelects();
     </script>
 </body>
 </html>
