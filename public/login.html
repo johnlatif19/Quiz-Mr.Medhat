@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول - Quiz Mr. Walid Al-Roudi</title>
+    <title>تسجيل الدخول - Quiz Mr. Medhat</title>
     <style>
         /* ===== إعادة تعيين القيم ===== */
         * {
@@ -512,7 +512,7 @@
     <div class="login-card">
         <!-- الشعار -->
         <div class="brand">
-            <div class="logo">Quiz <span>Mr. Walid Al-Roudi</span></div>
+            <div class="logo">Quiz <span>Mr. Medhat</span></div>
             <p class="subtitle">تسجيل الدخول للوحة التحكم</p>
             <div class="divider"></div>
         </div>
@@ -523,12 +523,12 @@
         <!-- نموذج تسجيل الدخول -->
         <form id="loginForm" autocomplete="on">
             <div class="form-group">
-                <label for="username">اسم المستخدم</label>
+                <label for="username">👤 اسم المستخدم</label>
                 <input type="text" id="username" placeholder="أدخل اسم المستخدم" required autofocus>
             </div>
 
             <div class="form-group">
-                <label for="password">كلمة المرور</label>
+                <label for="password">🔒 كلمة المرور</label>
                 <div class="password-wrapper">
                     <input type="password" id="password" placeholder="أدخل كلمة المرور" required>
                     <button type="button" class="toggle-password" id="togglePassword" aria-label="إظهار أو إخفاء كلمة المرور">
@@ -537,7 +537,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn-login">دخول</button>
+            <button type="submit" class="btn-login">🚀 دخول</button>
         </form>
 
         <!-- الروابط السفلية -->
@@ -560,7 +560,7 @@
             toggleBtn.addEventListener('click', function() {
                 const isPassword = passwordInput.getAttribute('type') === 'password';
                 passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
-                this.textContent = isPassword ? '🙈' : '🐵';
+                this.textContent = isPassword ? '🙈' : '👁️';
                 this.setAttribute('aria-label', isPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
             });
 
