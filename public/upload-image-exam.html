@@ -85,25 +85,28 @@
         .btn-warning:hover { background: #d68910; }
         .btn-danger { background: #e74c3c; color: white; }
         .btn-danger:hover { background: #c0392b; }
+        
         .upload-area {
-            border: 3px dashed #dce4ec;
+            border: 3px dashed #2980b9;
             border-radius: 12px;
             padding: 40px 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            background: #fafbfc;
+            background: #eaf4fb;
         }
         .upload-area:hover {
-            border-color: #2c6f9c;
-            background: #f0f4f8;
+            border-color: #1a5276;
+            background: #d4e6f1;
         }
         .upload-area.dragover {
             border-color: #27ae60;
             background: #eafaf1;
         }
         .upload-area .icon { font-size: 48px; display: block; margin-bottom: 10px; }
-        .upload-area .text { color: #7f8c8d; font-size: 16px; }
+        .upload-area .text { color: #2980b9; font-size: 16px; font-weight: 500; }
+        .upload-area .sub-text { color: #7f8c8d; font-size: 13px; margin-top: 5px; }
+        
         .image-preview-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -112,7 +115,7 @@
         }
         .image-preview-item {
             position: relative;
-            border: 2px solid #dce4ec;
+            border: 2px solid #2980b9;
             border-radius: 8px;
             overflow: hidden;
             aspect-ratio: 4/3;
@@ -139,35 +142,31 @@
             align-items: center;
             justify-content: center;
         }
-        .image-preview-item .remove-btn:hover {
-            background: #c0392b;
-        }
-        .question-type-select {
-            display: flex;
-            gap: 15px;
-            margin: 10px 0;
-        }
-        .question-type-select label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-weight: normal;
-            cursor: pointer;
-        }
+        .image-preview-item .remove-btn:hover { background: #c0392b; }
+
         .question-item {
             background: #f7f9fc;
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 10px;
-            border: 1px solid #e8edf3;
+            border: 2px solid #2980b9;
         }
         .question-item .q-number {
             font-weight: 600;
-            color: #2c6f9c;
+            color: #1a5276;
             margin-bottom: 10px;
         }
+        .question-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .question-options .opt-group { flex: 1; min-width: 100px; }
+        .question-options .opt-group label { font-size: 12px; color: #7f8c8d; display: block; }
+        .question-options .opt-group input { width: 100%; padding: 4px 8px; border: 1px solid #dce4ec; border-radius: 4px; }
         .hidden { display: none; }
         .loading { opacity: 0.6; pointer-events: none; }
+
         @media (max-width: 768px) {
             .header { flex-direction: column; align-items: stretch; text-align: center; }
             .image-preview-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
@@ -177,13 +176,17 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🖼️ إنشاء امتحان <span>من الصور</span></h1>
+            <h1>🖼️ إنشاء امتحان <span>من صور</span></h1>
             <div>
                 <a href="/dashboard" class="btn-back">⬅ العودة للوحة التحكم</a>
             </div>
         </div>
 
         <div class="card">
+            <div style="background:#eaf4fb;padding:12px 16px;border-radius:8px;margin-bottom:20px;border:1px solid #2980b9;">
+                <strong>🖼️ ماذا يعني هذا؟</strong> الصور التي ترفعها ستظهر كصور في الامتحان، وسيتم عرض الأسئلة بجانب كل صورة. مثالية للرسوم البيانية أو المخططات أو النصوص المصورة.
+            </div>
+
             <form id="examForm" onsubmit="createImageExam(event)">
                 <div class="form-group">
                     <label>اختر المجموعة</label>
@@ -194,14 +197,12 @@
 
                 <div class="form-group">
                     <label>نوع الأسئلة</label>
-                    <div class="question-type-select">
-                        <label>
-                            <input type="radio" name="questionType" value="multiple_choice" checked>
-                            اختيار من متعدد
+                    <div style="display:flex;gap:15px;margin-top:5px;">
+                        <label style="display:flex;align-items:center;gap:5px;font-weight:normal;cursor:pointer;">
+                            <input type="radio" name="questionType" value="multiple_choice" checked> اختيار من متعدد
                         </label>
-                        <label>
-                            <input type="radio" name="questionType" value="essay">
-                            مقالي (نص)
+                        <label style="display:flex;align-items:center;gap:5px;font-weight:normal;cursor:pointer;">
+                            <input type="radio" name="questionType" value="essay"> مقالي (نص)
                         </label>
                     </div>
                 </div>
@@ -211,7 +212,7 @@
                     <div class="upload-area" id="uploadArea">
                         <span class="icon">📸</span>
                         <div class="text">اسحب الصور هنا أو انقر للاختيار</div>
-                        <div style="font-size:12px;color:#aab8c8;margin-top:5px;">يدعم JPG, PNG, GIF - حتى 5MB لكل صورة</div>
+                        <div class="sub-text">يدعم JPG, PNG, GIF - حتى 5MB لكل صورة</div>
                         <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
                     </div>
                     <div id="imagePreviewGrid" class="image-preview-grid"></div>
@@ -236,7 +237,6 @@
         }
 
         let uploadedImages = [];
-        let questionCounter = 0;
 
         async function loadGroups() {
             try {
@@ -262,7 +262,6 @@
             }
         }
 
-        // رفع الصور
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const previewGrid = document.getElementById('imagePreviewGrid');
@@ -336,66 +335,59 @@
 
         function generateQuestionsFromImages() {
             const container = document.getElementById('questionsContainer');
+            const questionType = document.querySelector('input[name="questionType"]:checked').value;
+            
             if (uploadedImages.length === 0) {
-                container.innerHTML = '<div style="color:#7f8c8d;text-align:center;padding:20px;">قم برفع الصور أولاً لتوليد الأسئلة.</div>';
+                container.innerHTML = '<div style="color:#7f8c8d;text-align:center;padding:20px;">قم برفع الصور أولاً لإنشاء الأسئلة.</div>';
                 return;
             }
 
-            const questionType = document.querySelector('input[name="questionType"]:checked').value;
-            let html = '<div style="margin-top:15px;padding:10px;background:#eafaf1;border-radius:8px;border:1px solid #27ae60;">';
-            html += `<strong>📸 تم رفع ${uploadedImages.length} صورة</strong>`;
+            let html = '<div style="margin-top:15px;padding:10px;background:#eaf4fb;border-radius:8px;border:1px solid #2980b9;">';
+            html += `<strong>🖼️ تم رفع ${uploadedImages.length} صورة</strong>`;
+            html += ' <span style="color:#7f8c8d;font-size:13px;">(كل صورة ستظهر في الامتحان مع السؤال)</span>';
             html += '</div>';
 
             html += '<div style="margin-top:15px;">';
             uploadedImages.forEach((img, idx) => {
+                const isEssay = questionType === 'essay';
                 html += `
                     <div class="question-item">
-                        <div class="q-number">السؤال من الصورة ${idx + 1}</div>
+                        <div class="q-number">السؤال ${idx + 1} ${isEssay ? '📝 مقالي' : '✅ اختيار من متعدد'}</div>
                         <div style="margin-bottom:10px;">
                             <img src="${img.dataUrl}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #dce4ec;">
+                            <div style="font-size:12px;color:#7f8c8d;margin-top:4px;">${img.name}</div>
                         </div>
                         <div class="form-group">
                             <label>نص السؤال</label>
-                            <input type="text" id="img_q_text_${idx}" placeholder="أدخل نص السؤال (اختياري - سيتم استخدام اسم الصورة كافتراضي)" value="${img.name}">
+                            <input type="text" id="img_q_text_${idx}" placeholder="أدخل نص السؤال" value="سؤال عن الصورة ${idx + 1}" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
                         </div>
-                        ${questionType === 'multiple_choice' ? `
-                        <div class="question-options" style="display:flex;gap:10px;flex-wrap:wrap;">
-                            <div class="opt-group" style="flex:1;min-width:100px;">
-                                <label>A</label>
-                                <input type="text" id="img_q_opt_${idx}_0" placeholder="اختيار A" value="الخيار A">
+                        ${isEssay ? `
+                            <div class="form-group">
+                                <label>إجابة نموذجية (اختياري)</label>
+                                <textarea id="img_q_essay_${idx}" rows="2" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;"></textarea>
                             </div>
-                            <div class="opt-group" style="flex:1;min-width:100px;">
-                                <label>B</label>
-                                <input type="text" id="img_q_opt_${idx}_1" placeholder="اختيار B" value="الخيار B">
-                            </div>
-                            <div class="opt-group" style="flex:1;min-width:100px;">
-                                <label>C</label>
-                                <input type="text" id="img_q_opt_${idx}_2" placeholder="اختيار C" value="الخيار C">
-                            </div>
-                            <div class="opt-group" style="flex:1;min-width:100px;">
-                                <label>D</label>
-                                <input type="text" id="img_q_opt_${idx}_3" placeholder="اختيار D" value="الخيار D">
-                            </div>
+                            <input type="hidden" id="img_q_type_${idx}" value="essay">
+                        ` : `
+                        <div class="question-options">
+                            ${['A','B','C','D'].map((letter, oi) => `
+                                <div class="opt-group">
+                                    <label>${letter}</label>
+                                    <input type="text" id="img_q_opt_${idx}_${oi}" placeholder="الخيار ${letter}" value="الخيار ${letter}">
+                                </div>
+                            `).join('')}
                         </div>
                         <div class="form-group" style="margin-top:5px;">
                             <label>الإجابة الصحيحة</label>
-                            <select id="img_q_correct_${idx}">
+                            <select id="img_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
                                 <option value="0">A</option>
                                 <option value="1">B</option>
                                 <option value="2">C</option>
                                 <option value="3">D</option>
                             </select>
                         </div>
-                        ` : `
-                        <div class="form-group">
-                            <label>إجابة نموذجية (اختياري)</label>
-                            <textarea id="img_q_essay_${idx}" rows="2" placeholder="أدخل إجابة نموذجية للسؤال المقالي"></textarea>
-                        </div>
-                        <div style="color:#7f8c8d;font-size:13px;">
-                            ⚠️ الأسئلة المقالية ستحتاج إلى تقييم يدوي من قبل المدرس
-                        </div>
+                        <input type="hidden" id="img_q_type_${idx}" value="multiple_choice">
                         `}
-                        <input type="hidden" id="img_q_data_${idx}" value="${img.dataUrl}">
+                        <input type="hidden" id="img_q_image_${idx}" value="${img.dataUrl}">
                         <input type="hidden" id="img_q_mime_${idx}" value="${img.type}">
                     </div>
                 `;
@@ -435,11 +427,23 @@
 
             const questions = [];
             for (let i = 0; i < uploadedImages.length; i++) {
-                const text = document.getElementById(`img_q_text_${i}`).value.trim() || `سؤال من الصورة ${i + 1}`;
-                const imageData = document.getElementById(`img_q_data_${i}`).value;
+                const text = document.getElementById(`img_q_text_${i}`).value.trim() || `سؤال ${i + 1}`;
+                const imageData = document.getElementById(`img_q_image_${i}`).value;
                 const imageMime = document.getElementById(`img_q_mime_${i}`).value;
+                const qType = document.getElementById(`img_q_type_${i}`).value || questionType;
 
-                if (questionType === 'multiple_choice') {
+                if (qType === 'essay') {
+                    const essayAnswer = document.getElementById(`img_q_essay_${i}`).value.trim();
+                    questions.push({
+                        text,
+                        options: [],
+                        correct: null,
+                        questionType: 'essay',
+                        essayAnswer: essayAnswer || '',
+                        imageData,
+                        imageMime
+                    });
+                } else {
                     const options = [];
                     for (let j = 0; j < 4; j++) {
                         const opt = document.getElementById(`img_q_opt_${i}_${j}`).value.trim();
@@ -451,42 +455,29 @@
                         submitBtn.textContent = '✅ نشر الامتحان';
                         return;
                     }
-                    const correct = parseInt(document.getElementById(`img_q_correct_${i}`).value);
-                    questions.push({ 
-                        text, 
-                        options, 
-                        correct, 
+                    const correct = parseInt(document.getElementById(`img_q_correct_${i}`).value || 0);
+                    questions.push({
+                        text,
+                        options,
+                        correct,
                         questionType: 'multiple_choice',
-                        imageData: imageData,
-                        imageMime: imageMime
-                    });
-                } else {
-                    const essayAnswer = document.getElementById(`img_q_essay_${i}`).value.trim();
-                    questions.push({ 
-                        text, 
-                        options: [], 
-                        correct: null, 
-                        questionType: 'essay',
-                        essayAnswer: essayAnswer || '',
-                        imageData: imageData,
-                        imageMime: imageMime
+                        imageData,
+                        imageMime
                     });
                 }
             }
 
             try {
-                // استخدام FormData لإرسال الصور مع البيانات
                 const formData = new FormData();
                 formData.append('groupId', groupId);
                 formData.append('groupSlug', groupSlug);
                 formData.append('questionType', questionType);
+                formData.append('examType', 'image');
                 
-                // إضافة الصور كملفات
                 for (const img of uploadedImages) {
                     formData.append('images', img.file);
                 }
                 
-                // إضافة الأسئلة كـ JSON
                 formData.append('questions', JSON.stringify(questions));
 
                 const response = await fetch(`${API_URL}/api/exams/image`, {
