@@ -7,24 +7,10 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-app.disable('x-powered-by'); // إخفاء معلومات الخادم
-
 const PORT = process.env.PORT || 3000;
 
-// ========== MIDDLEWARE ==========
+// Middleware
 app.use(cors());
-
-// ========== SECURITY HEADERS ==========
-app.use((req, res, next) => {
-    // رؤوس الأمان الإضافية (في حال لم تعمل من vercel.json)
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'");
-    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    next();
-});
-
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
@@ -324,7 +310,7 @@ async function saveQuestions(questions) {
                     examId: examId
                 };
                 batch.set(docRef, data);
-                console.log('Adding question', index + 1, ':', q.text);
+                console.log('Adding question', index + 1, ':', data.text);
             });
             
             await batch.commit();
@@ -610,7 +596,7 @@ app.get('/api/exams', authenticateToken, async (req, res) => {
 
 app.post('/api/exams', authenticateToken, async (req, res) => {
     try {
-        const { groupId, groupSlug, questions } = req.body;
+        const { groupId, groupSlug, questions, examType } = req.body;
         if (!groupId || !questions || questions.length === 0) {
             return res.status(400).json({ error: 'Group ID and questions required' });
         }
@@ -618,6 +604,7 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
         const exam = {
             groupId,
             groupSlug,
+            examType: examType || 'manual',
             questionsCount: questions.length,
             isPublished: true,
             createdAt: new Date().toISOString()
@@ -785,20 +772,40 @@ app.post('/api/submit-exam', async (req, res) => {
 
         const questions = await getQuestionsByExamId(exam.id);
         let correctCount = 0;
+        let essayPending = 0;
         const results = [];
 
         questions.forEach((q, idx) => {
-            const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? answers[idx] : -1;
-            const isCorrect = userAnswer === q.correct;
-            if (isCorrect) correctCount++;
-            results.push({
+            const answerMode = q.answerMode || 'multiple';
+            const qType = q.type || 'manual';
+            const result = {
                 questionId: q.id,
-                questionText: q.text,
-                options: q.options,
-                userAnswer: userAnswer,
-                correctAnswer: q.correct,
-                isCorrect
-            });
+                questionText: q.text || '',
+                image: q.image || null,
+                options: q.options || [],
+                answerMode,
+                type: qType
+            };
+
+            if (answerMode === 'essay') {
+                const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? String(answers[idx]).trim() : '';
+                result.essayAnswer = q.essayAnswer || '';
+                result.userAnswer = userAnswer;
+                const expectedLower = (q.essayAnswer || '').trim().toLowerCase();
+                const userLower = userAnswer.toLowerCase();
+                const isCorrect = expectedLower !== '' && userLower !== '' && userLower === expectedLower;
+                if (isCorrect) correctCount++;
+                if (!isCorrect && userAnswer !== '') essayPending++;
+                result.isCorrect = isCorrect;
+            } else {
+                const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? answers[idx] : -1;
+                const isCorrect = userAnswer === q.correct;
+                if (isCorrect) correctCount++;
+                result.userAnswer = userAnswer;
+                result.correctAnswer = q.correct;
+                result.isCorrect = isCorrect;
+            }
+            results.push(result);
         });
 
         const submission = {
@@ -809,6 +816,7 @@ app.post('/api/submit-exam', async (req, res) => {
             total: questions.length,
             correct: correctCount,
             score: Math.round((correctCount / questions.length) * 100),
+            essayPending,
             results,
             cheatLog: cheatLog || []
         };
