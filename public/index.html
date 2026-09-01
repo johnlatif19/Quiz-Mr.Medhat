@@ -243,6 +243,23 @@
             padding: 0.25rem 0;
         }
 
+        .question-type-badge {
+            display: inline-block;
+            padding: 2px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .question-type-badge.multiple-choice {
+            background: #d4edda;
+            color: #155724;
+        }
+        .question-type-badge.essay {
+            background: #fff3cd;
+            color: #856404;
+        }
+
         .options-grid {
             display: flex;
             flex-direction: column;
@@ -293,6 +310,38 @@
         .option-btn.selected .letter {
             background: #1d6f9c;
             color: white;
+        }
+
+        /* Essay Textarea */
+        .essay-container {
+            margin-top: 0.5rem;
+        }
+        .essay-container textarea {
+            width: 100%;
+            padding: 1rem 1.2rem;
+            border: 2px solid #dce4ec;
+            border-radius: 16px;
+            font-size: 1.05rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+            transition: border-color 0.2s;
+            background: #fafbfc;
+        }
+        .essay-container textarea:focus {
+            outline: none;
+            border-color: #2a6f97;
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(26, 109, 156, 0.1);
+        }
+        .essay-container textarea::placeholder {
+            color: #aab8c8;
+        }
+        .essay-container .char-count {
+            text-align: left;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 0.4rem;
         }
 
         .nav-bar {
@@ -400,6 +449,7 @@
         .stat-correct { color: #1f8b4c; }
         .stat-wrong { color: #b13e3e; }
         .stat-unanswered { color: #a07c3a; }
+        .stat-essay { color: #856404; }
 
         .review-list {
             margin-top: 1.8rem;
@@ -435,6 +485,20 @@
         .review-item.unanswered {
             border-left-color: #b89c5a;
             background: #fbf7ed;
+        }
+
+        .review-item.essay {
+            border-left-color: #f39c12;
+            background: #fffdf5;
+        }
+
+        .review-item .essay-label {
+            background: #fff3cd;
+            padding: 1px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #856404;
         }
 
         .q-preview {
@@ -492,6 +556,17 @@
             margin: 1rem 0;
         }
 
+        .needs-review-badge {
+            background: #f39c12;
+            color: white;
+            padding: 2px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
         @media (max-width: 500px) {
             .nav-bar {
                 flex-direction: column;
@@ -517,6 +592,10 @@
             }
             .page-404 .error-code {
                 font-size: 4rem;
+            }
+            .essay-container textarea {
+                min-height: 80px;
+                font-size: 0.95rem;
             }
         }
 
@@ -585,8 +664,13 @@
 
         <div id="quizContent">
             <div class="question-card">
+                <div id="questionTypeBadge"></div>
                 <div class="question-text" id="questionText">Loading question…</div>
                 <div class="options-grid" id="optionsContainer"></div>
+                <div class="essay-container" id="essayContainer" style="display:none;">
+                    <textarea id="essayInput" placeholder="اكتب إجابتك هنا..."></textarea>
+                    <div class="char-count" id="charCount">0 حرف</div>
+                </div>
             </div>
             <div class="nav-bar">
                 <div class="nav-group">
@@ -629,7 +713,11 @@
         const startBtn = document.getElementById('startQuizBtn');
         const nameError = document.getElementById('nameError');
         const questionText = document.getElementById('questionText');
+        const questionTypeBadge = document.getElementById('questionTypeBadge');
         const optionsContainer = document.getElementById('optionsContainer');
+        const essayContainer = document.getElementById('essayContainer');
+        const essayInput = document.getElementById('essayInput');
+        const charCount = document.getElementById('charCount');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
         const submitBtn = document.getElementById('submitBtn');
@@ -656,26 +744,20 @@
         const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
         // ====== نظام مكافحة الغش ======
-        let cheatDetected = false;
         let cheatLog = [];
 
         function logCheatEvent(eventType, details) {
             const timestamp = new Date().toISOString();
             cheatLog.push({ eventType, details, timestamp });
-            
-            // إرسال التقرير فوراً إلى الداشبورد (بدون إظهار أي رسالة للطالب)
             sendCheatReport(eventType, details);
         }
 
         async function sendCheatReport(eventType, details) {
             if (!userName || !groupSlug) return;
-            
             try {
                 await fetch(`${API_URL}/api/cheat-report`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         studentName: userName,
                         groupSlug: groupSlug,
@@ -689,95 +771,24 @@
             }
         }
 
-        // ====== كشف الـ ScreenShot ======
-        // 1. كشف استخدام PrintScreen (keydown)
+        // ====== كشف الغش ======
         document.addEventListener('keydown', function(e) {
             if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
-                // كشف زر Print Screen
                 if (e.key === 'PrintScreen') {
                     logCheatEvent('screenshot', 'محاولة استخدام PrintScreen');
                     e.preventDefault();
                     return false;
                 }
-                // كشف Ctrl+Shift+S (بعض برامج التصوير)
                 if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
                     logCheatEvent('screenshot', 'محاولة استخدام Ctrl+Shift+S');
                     e.preventDefault();
                     return false;
                 }
-                // كشف Windows+Shift+S (أداة القطع في ويندوز)
                 if (e.metaKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
                     logCheatEvent('screenshot', 'محاولة استخدام Windows+Shift+S');
                     e.preventDefault();
                     return false;
                 }
-            }
-        });
-
-        // 2. كشف فقدان التركيز (قد يكون فتح أداة تصوير)
-        document.addEventListener('blur', function(e) {
-            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
-                // تأخير بسيط للتأكد من أنها ليست مجرد تنقل بين الحقول
-                setTimeout(() => {
-                    if (document.activeElement && document.activeElement.tagName === 'INPUT') {
-                        return; // المستخدم في حقل الإدخال
-                    }
-                    // قد يكون فتح أداة تصوير أو برنامج آخر
-                    if (!document.hasFocus()) {
-                        logCheatEvent('screenshot', 'فقدان التركيز - قد يكون فتح أداة تصوير');
-                    }
-                }, 500);
-            }
-        });
-
-        // 3. كشف تغيير حجم النافذة بشكل مفاجئ (قد يكون فتح أداة تصوير)
-        let lastWindowSize = { width: window.innerWidth, height: window.innerHeight };
-        window.addEventListener('resize', function() {
-            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
-                const currentWidth = window.innerWidth;
-                const currentHeight = window.innerHeight;
-                const diffWidth = Math.abs(currentWidth - lastWindowSize.width);
-                const diffHeight = Math.abs(currentHeight - lastWindowSize.height);
-                
-                // إذا كان التغيير كبيراً (أكثر من 100 بكسل) قد يكون فتح أداة تصوير
-                if (diffWidth > 100 || diffHeight > 100) {
-                    logCheatEvent('screenshot', 'تغيير مفاجئ في حجم النافذة - قد يكون فتح أداة تصوير');
-                }
-                lastWindowSize = { width: currentWidth, height: currentHeight };
-            }
-        });
-
-        // 4. منع النسخ
-        document.addEventListener('copy', function(e) {
-            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
-                logCheatEvent('copy', 'محاولة نسخ النص');
-                e.preventDefault();
-                return false;
-            }
-        });
-
-        // 5. منع القص
-        document.addEventListener('cut', function(e) {
-            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
-                logCheatEvent('cut', 'محاولة قص النص');
-                e.preventDefault();
-                return false;
-            }
-        });
-
-        // 6. منع النقر بزر الماوس الأيمن
-        document.addEventListener('contextmenu', function(e) {
-            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
-                logCheatEvent('right_click', 'محاولة فتح قائمة السياق');
-                e.preventDefault();
-                return false;
-            }
-        });
-
-        // 7. منع اختصارات لوحة المفاتيح
-        document.addEventListener('keydown', function(e) {
-            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
-                // Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+U, Ctrl+S, F12
                 if ((e.ctrlKey && ['c', 'v', 'x', 'u', 's'].includes(e.key.toLowerCase())) || e.key === 'F12') {
                     logCheatEvent('keyboard_shortcut', `محاولة استخدام اختصار: ${e.ctrlKey ? 'Ctrl+' : ''}${e.key}`);
                     e.preventDefault();
@@ -786,14 +797,63 @@
             }
         });
 
-        // 8. كشف الخروج من الموقع
+        document.addEventListener('blur', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                setTimeout(() => {
+                    if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                        return;
+                    }
+                    if (!document.hasFocus()) {
+                        logCheatEvent('screenshot', 'فقدان التركيز - قد يكون فتح أداة تصوير');
+                    }
+                }, 500);
+            }
+        });
+
+        let lastWindowSize = { width: window.innerWidth, height: window.innerHeight };
+        window.addEventListener('resize', function() {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                const currentWidth = window.innerWidth;
+                const currentHeight = window.innerHeight;
+                const diffWidth = Math.abs(currentWidth - lastWindowSize.width);
+                const diffHeight = Math.abs(currentHeight - lastWindowSize.height);
+                if (diffWidth > 100 || diffHeight > 100) {
+                    logCheatEvent('screenshot', 'تغيير مفاجئ في حجم النافذة - قد يكون فتح أداة تصوير');
+                }
+                lastWindowSize = { width: currentWidth, height: currentHeight };
+            }
+        });
+
+        document.addEventListener('copy', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                logCheatEvent('copy', 'محاولة نسخ النص');
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        document.addEventListener('cut', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                logCheatEvent('cut', 'محاولة قص النص');
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        document.addEventListener('contextmenu', function(e) {
+            if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
+                logCheatEvent('right_click', 'محاولة فتح قائمة السياق');
+                e.preventDefault();
+                return false;
+            }
+        });
+
         document.addEventListener('visibilitychange', function() {
             if (document.hidden && document.getElementById('quizArea').style.display === 'block' && !submitted) {
                 logCheatEvent('tab_switch', 'الخروج من علامة التبويب');
             }
         });
 
-        // 9. منع التحديد
         document.addEventListener('selectstart', function(e) {
             if (document.getElementById('quizArea').style.display === 'block' && !submitted) {
                 e.preventDefault();
@@ -916,7 +976,6 @@
                 console.error('Error checking attempt:', error);
             }
 
-            // إنشاء معرف فريد للطالب لتتبع محاولات الغش
             studentId = `${userName}_${Date.now()}`;
             
             hasAttempted = false;
@@ -942,21 +1001,57 @@
             }
         });
 
+        // ====== عدد الأحرف ======
+        essayInput.addEventListener('input', function() {
+            const count = this.value.length;
+            charCount.textContent = `${count} حرف`;
+        });
+
         // ====== عرض السؤال ======
         function renderQuestion(index) {
             if (!questions || questions.length === 0) return;
             const q = questions[index];
+            const isEssay = q.questionType === 'essay';
+            
+            // عرض نوع السؤال
+            if (isEssay) {
+                questionTypeBadge.innerHTML = '<span class="question-type-badge essay">📝 سؤال مقالي</span>';
+            } else {
+                questionTypeBadge.innerHTML = '<span class="question-type-badge multiple-choice">✅ اختيار من متعدد</span>';
+            }
+            
             questionText.textContent = q.text;
-            optionsContainer.innerHTML = '';
-            q.options.forEach((opt, idx) => {
-                const btn = document.createElement('div');
-                btn.className = 'option-btn';
-                if (answers[index] === idx) btn.classList.add('selected');
-                btn.innerHTML = `<span class="letter">${LETTERS[idx]}</span> ${opt}`;
-                btn.dataset.index = idx;
-                btn.addEventListener('click', () => selectOption(index, idx));
-                optionsContainer.appendChild(btn);
-            });
+            
+            // إخفاء/إظهار العناصر حسب نوع السؤال
+            if (isEssay) {
+                optionsContainer.style.display = 'none';
+                essayContainer.style.display = 'block';
+                // استعادة الإجابة المحفوظة
+                if (answers[index] !== null && answers[index] !== undefined) {
+                    essayInput.value = answers[index] || '';
+                } else {
+                    essayInput.value = '';
+                }
+                charCount.textContent = `${essayInput.value.length} حرف`;
+                // حفظ الإجابة عند تغيير النص
+                essayInput.oninput = function() {
+                    answers[currentIndex] = this.value;
+                    charCount.textContent = `${this.value.length} حرف`;
+                };
+            } else {
+                optionsContainer.style.display = 'flex';
+                essayContainer.style.display = 'none';
+                optionsContainer.innerHTML = '';
+                q.options.forEach((opt, idx) => {
+                    const btn = document.createElement('div');
+                    btn.className = 'option-btn';
+                    if (answers[index] === idx) btn.classList.add('selected');
+                    btn.innerHTML = `<span class="letter">${LETTERS[idx]}</span> ${opt}`;
+                    btn.dataset.index = idx;
+                    btn.addEventListener('click', () => selectOption(index, idx));
+                    optionsContainer.appendChild(btn);
+                });
+            }
 
             questionCounter.textContent = `${index+1} / ${questions.length}`;
             const pct = ((index+1) / questions.length) * 100;
@@ -974,6 +1069,11 @@
 
         function goTo(index) {
             if (index < 0 || index >= questions.length) return;
+            // حفظ الإجابة الحالية للمقالي قبل الانتقال
+            const currentQ = questions[currentIndex];
+            if (currentQ && currentQ.questionType === 'essay') {
+                answers[currentIndex] = essayInput.value;
+            }
             currentIndex = index;
             renderQuestion(currentIndex);
         }
@@ -985,9 +1085,29 @@
         submitBtn.addEventListener('click', function() {
             if (submitted) return;
             if (questions.length === 0) return;
-            const unanswered = answers.filter(a => a === null).length;
+            
+            // حفظ الإجابة الحالية للمقالي
+            const currentQ = questions[currentIndex];
+            if (currentQ && currentQ.questionType === 'essay') {
+                answers[currentIndex] = essayInput.value;
+            }
+            
+            let unanswered = 0;
+            let essayUnanswered = 0;
+            questions.forEach((q, idx) => {
+                const ans = answers[idx];
+                if (ans === null || ans === undefined || ans === '') {
+                    unanswered++;
+                    if (q.questionType === 'essay') essayUnanswered++;
+                }
+            });
+            
             if (unanswered > 0) {
-                if (!confirm(`لديك ${unanswered} سؤال(أسئلة) لم تجب عليها. هل تريد الإنهاء؟`)) return;
+                let msg = `لديك ${unanswered} سؤال(أسئلة) لم تجب عليها`;
+                if (essayUnanswered > 0) {
+                    msg += ` (منها ${essayUnanswered} سؤال مقالي)`;
+                }
+                if (!confirm(`${msg}. هل تريد الإنهاء؟`)) return;
             } else {
                 if (!confirm('هل أنت متأكد من إنهاء الاختبار؟')) return;
             }
@@ -997,18 +1117,23 @@
 
         async function submitAnswers() {
             try {
+                // التأكد من حفظ جميع الإجابات المقالية
+                questions.forEach((q, idx) => {
+                    if (q.questionType === 'essay' && answers[idx] === null) {
+                        answers[idx] = '';
+                    }
+                });
+
                 const payload = {
                     groupSlug: groupSlug,
                     studentName: userName,
                     answers: answers,
-                    cheatLog: cheatLog // إرسال سجل الغش مع الإجابة
+                    cheatLog: cheatLog
                 };
 
                 const response = await fetch(`${API_URL}/api/submit-exam`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
@@ -1035,36 +1160,50 @@
         // ====== عرض النتائج المحلية ======
         function displayLocalResults() {
             let correct = 0;
+            let essayCount = 0;
             const results = questions.map((q, idx) => {
+                const isEssay = q.questionType === 'essay';
+                if (isEssay) essayCount++;
                 const selected = answers[idx];
-                const isCorrect = selected === q.correct;
+                const isCorrect = !isEssay && selected === q.correct;
                 if (isCorrect) correct++;
                 return {
-                    question: q.text,
-                    selected: selected !== undefined ? selected : null,
-                    correct: q.correct,
-                    isCorrect,
-                    options: q.options
+                    questionText: q.text,
+                    userAnswer: isEssay ? (selected || '') : (selected !== undefined ? selected : -1),
+                    correctAnswer: isEssay ? null : q.correct,
+                    isCorrect: isEssay ? null : isCorrect,
+                    isEssay: isEssay,
+                    options: q.options || []
                 };
             });
             displayResults({
                 studentName: userName,
                 groupSlug: groupSlug,
                 total: questions.length,
-                correct,
-                score: Math.round((correct / questions.length) * 100),
-                results
+                correct: correct,
+                score: Math.round((correct / (questions.length - essayCount)) * 100) || 0,
+                results: results,
+                needsReview: essayCount > 0
             });
         }
 
         // ====== عرض النتائج ======
         function displayResults(result) {
-            const { total, correct, score, results } = result;
+            const { total, correct, score, results, needsReview } = result;
             
             let wrong = 0;
             let unanswered = 0;
+            let essayCount = 0;
+            let essayAnswered = 0;
             
             results.forEach(r => {
+                if (r.isEssay) {
+                    essayCount++;
+                    if (r.userAnswer && r.userAnswer.trim().length > 0) {
+                        essayAnswered++;
+                    }
+                    return;
+                }
                 const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
                 if (userAns < 0) {
                     unanswered++;
@@ -1073,47 +1212,91 @@
                 }
             });
             
-            const performance = score >= 80 ? 'ممتاز' : score >= 60 ? 'جيد' : score >= 40 ? 'مقبول' : 'يحتاج تحسين';
+            const totalMultipleChoice = total - essayCount;
+            const displayCorrect = correct;
+            const displayTotal = totalMultipleChoice > 0 ? totalMultipleChoice : total;
+            const displayScore = totalMultipleChoice > 0 ? Math.round((correct / totalMultipleChoice) * 100) : (essayCount > 0 ? 0 : 0);
+            
+            const performance = displayScore >= 80 ? 'ممتاز' : displayScore >= 60 ? 'جيد' : displayScore >= 40 ? 'مقبول' : 'يحتاج تحسين';
 
             let reviewHtml = '';
             results.forEach((r, i) => {
+                const isEssay = r.isEssay || false;
                 const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
                 const correctIndex = (r.correctAnswer !== null && r.correctAnswer !== undefined) ? r.correctAnswer : 0;
                 
-                const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
-                const correctLetter = (correctIndex >= 0 && correctIndex < LETTERS.length) ? LETTERS[correctIndex] : '—';
-                
-                const isCorrect = r.isCorrect === true;
-                const isWrong = userAns >= 0 && !isCorrect;
-                const isUnanswered = userAns < 0;
-                
                 let cls = 'review-item';
-                if (isCorrect) cls += ' correct';
-                else if (isWrong) cls += ' wrong';
-                else cls += ' unanswered';
+                let detailHtml = '';
+                
+                if (isEssay) {
+                    cls += ' essay';
+                    const hasAnswer = userAns && userAns.toString().trim().length > 0;
+                    detailHtml = `
+                        <span class="essay-label">📝 مقالي</span>
+                        <span class="answer-detail">
+                            ${hasAnswer ? `✍️ الإجابة: "${userAns}"` : '⬜ لم يجب'}
+                            <span style="color:#f39c12;font-size:12px;display:block;margin-top:3px;">
+                                ⚠️ يحتاج إلى تقييم يدوي من المدرس
+                            </span>
+                        </span>
+                    `;
+                } else {
+                    const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
+                    const correctLetter = (correctIndex >= 0 && correctIndex < LETTERS.length) ? LETTERS[correctIndex] : '—';
+                    const isCorrect = r.isCorrect === true;
+                    const isWrong = userAns >= 0 && !isCorrect;
+                    const isUnanswered = userAns < 0;
+                    
+                    if (isCorrect) cls += ' correct';
+                    else if (isWrong) cls += ' wrong';
+                    else cls += ' unanswered';
+                    
+                    detailHtml = `
+                        <span class="answer-detail">
+                            ${isCorrect ? '✓' : isWrong ? '✗' : '—'}
+                            إجابتك: <span class="student-ans">${selectedLetter}</span>
+                            ${!isCorrect ? ` · الإجابة الصحيحة: <span class="correct-ans">${correctLetter}</span>` : ''}
+                        </span>
+                    `;
+                }
 
                 reviewHtml += `<div class="${cls}">
                     <span class="q-preview">Q${i+1}</span>
-                    <span class="answer-detail">
-                        ${isCorrect ? '✓' : isWrong ? '✗' : '—'}
-                        إجابتك: <span class="student-ans">${selectedLetter}</span>
-                        ${!isCorrect ? ` · الإجابة الصحيحة: <span class="correct-ans">${correctLetter}</span>` : ''}
-                    </span>
+                    ${detailHtml}
                 </div>`;
             });
 
-            resultsContent.innerHTML = `
-                <div class="score-row">
-                    <span class="score-big">${correct} / ${total}</span>
-                    <span class="stat-badge">${score}%</span>
+            let statsHtml = '';
+            if (essayCount > 0) {
+                statsHtml += `
+                    <span class="stat-badge stat-essay">📝 ${essayCount} مقالي (${essayAnswered} أجاب)</span>
+                `;
+            }
+            if (totalMultipleChoice > 0) {
+                statsHtml += `
                     <span class="stat-badge stat-correct">✓ ${correct} صحيحة</span>
                     <span class="stat-badge stat-wrong">✗ ${wrong} خاطئة</span>
                     <span class="stat-badge stat-unanswered">— ${unanswered} لم تجب</span>
+                `;
+            }
+
+            const needsReviewHtml = needsReview ? `
+                <div style="background:#fff3cd;padding:12px 16px;border-radius:8px;margin-bottom:15px;border:1px solid #f39c12;">
+                    📝 <strong>بحاجة إلى مراجعة:</strong> يحتوي هذا الامتحان على أسئلة مقالية تحتاج إلى تقييم يدوي من المدرس.
+                </div>
+            ` : '';
+
+            resultsContent.innerHTML = `
+                <div class="score-row">
+                    <span class="score-big">${displayCorrect} / ${displayTotal}</span>
+                    <span class="stat-badge">${displayScore}%</span>
+                    ${statsHtml}
                 </div>
                 <div style="margin: 0.8rem 0 0.2rem 0; font-weight: 500; font-size: 1.1rem;">التقييم: ${performance}</div>
                 <div style="margin: 0.3rem 0 0.8rem 0; color: #4a5a6a; font-size: 0.95rem;">الاسم: ${result.studentName || userName}</div>
                 <div style="margin-bottom: 0.8rem; color: #4a5a6a; font-size: 0.95rem;">المجموعة: ${result.groupSlug || groupSlug}</div>
                 ${cheatLog.length > 0 ? `<div style="background:#fde8e8;padding:10px;border-radius:8px;margin-bottom:10px;border:1px solid #e74c3c;"><strong>⚠️ تم تسجيل محاولات غش:</strong> ${cheatLog.length} محاولة</div>` : ''}
+                ${needsReviewHtml}
                 <div class="review-list">${reviewHtml}</div>
             `;
 
@@ -1122,11 +1305,17 @@
             shareReportBox.classList.add('hidden');
 
             let reportLines = [];
-            reportLines.push('تقرير Quiz Mr. Walid Al-Roudi');
+            reportLines.push('تقرير Quiz Mr. Medhat');
             reportLines.push(`الاسم: ${result.studentName || userName}`);
             reportLines.push(`المجموعة: ${result.groupSlug || groupSlug}`);
-            reportLines.push(`النتيجة: ${correct} / ${total} (${score}%)`);
-            reportLines.push(`صحيح: ${correct} | خاطئ: ${wrong} | لم يجب: ${unanswered}`);
+            reportLines.push(`النتيجة: ${displayCorrect} / ${displayTotal} (${displayScore}%)`);
+            if (totalMultipleChoice > 0) {
+                reportLines.push(`صحيح: ${correct} | خاطئ: ${wrong} | لم يجب: ${unanswered}`);
+            }
+            if (essayCount > 0) {
+                reportLines.push(`أسئلة مقالية: ${essayCount} (${essayAnswered} أجاب)`);
+                reportLines.push('⚠️ الأسئلة المقالية تحتاج إلى تقييم يدوي');
+            }
             reportLines.push(`التقييم: ${performance}`);
             if (cheatLog.length > 0) {
                 reportLines.push('');
@@ -1135,19 +1324,33 @@
                     reportLines.push(`  ${idx+1}. ${log.eventType} - ${log.details} (${new Date(log.timestamp).toLocaleTimeString()})`);
                 });
             }
-            reportLines.push('');
-            reportLines.push('— الإجابات الخاطئة —');
-            let hasWrong = false;
-            results.forEach((r, i) => {
-                const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
-                if (userAns >= 0 && !r.isCorrect) {
-                    hasWrong = true;
-                    const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
-                    const correctLetter = (r.correctAnswer >= 0 && r.correctAnswer < LETTERS.length) ? LETTERS[r.correctAnswer] : '—';
-                    reportLines.push(`Q${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
-                }
-            });
-            if (!hasWrong) reportLines.push('جميع الإجابات صحيحة!');
+            if (totalMultipleChoice > 0) {
+                reportLines.push('');
+                reportLines.push('— الإجابات الخاطئة —');
+                let hasWrong = false;
+                results.forEach((r, i) => {
+                    if (!r.isEssay) {
+                        const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
+                        if (userAns >= 0 && !r.isCorrect) {
+                            hasWrong = true;
+                            const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
+                            const correctLetter = (r.correctAnswer >= 0 && r.correctAnswer < LETTERS.length) ? LETTERS[r.correctAnswer] : '—';
+                            reportLines.push(`Q${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
+                        }
+                    }
+                });
+                if (!hasWrong && totalMultipleChoice > 0) reportLines.push('جميع الإجابات الصحيحة!');
+            }
+            if (essayCount > 0) {
+                reportLines.push('');
+                reportLines.push('— إجابات الأسئلة المقالية —');
+                results.forEach((r, i) => {
+                    if (r.isEssay) {
+                        const answer = r.userAnswer && r.userAnswer.trim().length > 0 ? r.userAnswer : '(لم يجب)';
+                        reportLines.push(`Q${i+1}: ${answer}`);
+                    }
+                });
+            }
             window._reportText = reportLines.join('\n');
             shareReportBox.textContent = window._reportText;
         }
