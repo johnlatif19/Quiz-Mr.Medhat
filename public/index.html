@@ -530,6 +530,29 @@
             margin-bottom: 0.5rem;
         }
 
+        .question-image {
+            max-width: 100%;
+            max-height: 350px;
+            object-fit: contain;
+            margin: 12px 0;
+            border-radius: 8px;
+            border: 1px solid #e3eaf2;
+        }
+
+        .essay-input-container { margin-top: 1rem; }
+        #essayAnswerInput {
+            width: 100%;
+            min-height: 150px;
+            padding: 0.9rem 1.2rem;
+            border: 2px solid #e3eaf2;
+            border-radius: 18px;
+            font-size: 1.05rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+        #essayAnswerInput:focus { outline: none; border-color: #2a6f97; }
+
         #page404 {
             display: none;
         }
@@ -587,6 +610,9 @@
             <div class="question-card">
                 <div class="question-text" id="questionText">Loading question…</div>
                 <div class="options-grid" id="optionsContainer"></div>
+                <div class="essay-input-container" id="essayInputContainer" style="display:none;">
+                    <textarea id="essayAnswerInput" placeholder="اكتب إجابتك هنا..."></textarea>
+                </div>
             </div>
             <div class="nav-bar">
                 <div class="nav-group">
@@ -630,6 +656,8 @@
         const nameError = document.getElementById('nameError');
         const questionText = document.getElementById('questionText');
         const optionsContainer = document.getElementById('optionsContainer');
+        const essayInputContainer = document.getElementById('essayInputContainer');
+        const essayAnswerInput = document.getElementById('essayAnswerInput');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
         const submitBtn = document.getElementById('submitBtn');
@@ -869,7 +897,8 @@
                     examId = examData.exam.id;
                     questions = examData.questions || [];
                     groupNameDisplay.textContent = `مجموعة ${groupSlug}`;
-                    examInfoDisplay.textContent = `عدد الأسئلة: ${questions.length}`;
+                    const essayCount = questions.filter(q => (q.answerMode || 'multiple') === 'essay').length;
+                    examInfoDisplay.textContent = `عدد الأسئلة: ${questions.length}${essayCount > 0 ? ' | ' + essayCount + ' مقالي' : ''}`;
                     startBtn.disabled = false;
                     
                     if (questions.length === 0) {
@@ -946,17 +975,35 @@
         function renderQuestion(index) {
             if (!questions || questions.length === 0) return;
             const q = questions[index];
-            questionText.textContent = q.text;
+            const answerMode = q.answerMode || 'multiple';
+            const qType = q.type || 'manual';
+
+            if (qType === 'image' && q.image) {
+                questionText.innerHTML = `${index + 1}. <img src="${q.image}" class="question-image" alt="صورة السؤال">`;
+            } else {
+                questionText.innerHTML = `${index + 1}. ${q.text || ''}`;
+            }
+
             optionsContainer.innerHTML = '';
-            q.options.forEach((opt, idx) => {
-                const btn = document.createElement('div');
-                btn.className = 'option-btn';
-                if (answers[index] === idx) btn.classList.add('selected');
-                btn.innerHTML = `<span class="letter">${LETTERS[idx]}</span> ${opt}`;
-                btn.dataset.index = idx;
-                btn.addEventListener('click', () => selectOption(index, idx));
-                optionsContainer.appendChild(btn);
-            });
+            optionsContainer.style.display = 'flex';
+            essayInputContainer.style.display = 'none';
+
+            if (answerMode === 'essay') {
+                optionsContainer.style.display = 'none';
+                essayInputContainer.style.display = 'block';
+                essayAnswerInput.value = (answers[index] !== null && answers[index] !== undefined) ? answers[index] : '';
+                essayAnswerInput.focus();
+            } else {
+                q.options.forEach((opt, idx) => {
+                    const btn = document.createElement('div');
+                    btn.className = 'option-btn';
+                    if (answers[index] === idx) btn.classList.add('selected');
+                    btn.innerHTML = `<span class="letter">${LETTERS[idx]}</span> ${opt}`;
+                    btn.dataset.index = idx;
+                    btn.addEventListener('click', () => selectOption(index, idx));
+                    optionsContainer.appendChild(btn);
+                });
+            }
 
             questionCounter.textContent = `${index+1} / ${questions.length}`;
             const pct = ((index+1) / questions.length) * 100;
@@ -972,6 +1019,10 @@
             renderQuestion(currentIndex);
         }
 
+        essayAnswerInput.addEventListener('input', function() {
+            answers[currentIndex] = this.value;
+        });
+
         function goTo(index) {
             if (index < 0 || index >= questions.length) return;
             currentIndex = index;
@@ -985,7 +1036,7 @@
         submitBtn.addEventListener('click', function() {
             if (submitted) return;
             if (questions.length === 0) return;
-            const unanswered = answers.filter(a => a === null).length;
+            const unanswered = answers.filter(a => a === null || a === '').length;
             if (unanswered > 0) {
                 if (!confirm(`لديك ${unanswered} سؤال(أسئلة) لم تجب عليها. هل تريد الإنهاء؟`)) return;
             } else {
@@ -1032,19 +1083,31 @@
             }
         }
 
-        // ====== عرض النتائج المحلية ======
         function displayLocalResults() {
             let correct = 0;
             const results = questions.map((q, idx) => {
                 const selected = answers[idx];
-                const isCorrect = selected === q.correct;
+                const answerMode = q.answerMode || 'multiple';
+                let isCorrect = false;
+
+                if (answerMode === 'essay') {
+                    const studentAnswer = selected !== null && selected !== undefined ? String(selected).trim() : '';
+                    const expected = (q.essayAnswer || '').trim().toLowerCase();
+                    isCorrect = expected !== '' && studentAnswer.toLowerCase() === expected;
+                } else {
+                    isCorrect = selected === q.correct;
+                }
                 if (isCorrect) correct++;
                 return {
                     question: q.text,
+                    questionImage: q.image || null,
+                    answerMode,
+                    type: q.type || 'manual',
                     selected: selected !== undefined ? selected : null,
                     correct: q.correct,
+                    essayAnswer: q.essayAnswer || '',
                     isCorrect,
-                    options: q.options
+                    options: q.options || []
                 };
             });
             displayResults({
@@ -1065,11 +1128,21 @@
             let unanswered = 0;
             
             results.forEach(r => {
-                const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
-                if (userAns < 0) {
-                    unanswered++;
-                } else if (!r.isCorrect) {
-                    wrong++;
+                const answerMode = r.answerMode || 'multiple';
+                if (answerMode === 'essay') {
+                    const userAns = (r.userAnswer !== null && r.userAnswer !== undefined) ? String(r.userAnswer).trim() : '';
+                    if (!userAns) {
+                        unanswered++;
+                    } else if (!r.isCorrect) {
+                        wrong++;
+                    }
+                } else {
+                    const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
+                    if (userAns < 0) {
+                        unanswered++;
+                    } else if (!r.isCorrect) {
+                        wrong++;
+                    }
                 }
             });
             
@@ -1077,27 +1150,50 @@
 
             let reviewHtml = '';
             results.forEach((r, i) => {
-                const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
-                const correctIndex = (r.correctAnswer !== null && r.correctAnswer !== undefined) ? r.correctAnswer : 0;
-                
-                const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
-                const correctLetter = (correctIndex >= 0 && correctIndex < LETTERS.length) ? LETTERS[correctIndex] : '—';
-                
+                const answerMode = r.answerMode || 'multiple';
                 const isCorrect = r.isCorrect === true;
-                const isWrong = userAns >= 0 && !isCorrect;
-                const isUnanswered = userAns < 0;
                 
                 let cls = 'review-item';
                 if (isCorrect) cls += ' correct';
-                else if (isWrong) cls += ' wrong';
-                else cls += ' unanswered';
+                else {
+                    const userAns = answerMode === 'essay' 
+                        ? (String(r.userAnswer || '').trim())
+                        : (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1 ? r.userAnswer : -1);
+                    if (userAns === '' || userAns === -1 || userAns === null || userAns === undefined) {
+                        cls += ' unanswered';
+                    } else {
+                        cls += ' wrong';
+                    }
+                }
+
+                let answerDetail = '';
+                if (answerMode === 'essay') {
+                    const userText = (r.userAnswer !== null && r.userAnswer !== undefined) ? r.userAnswer : '';
+                    answerDetail = `
+                        <div class="essay-review">
+                            <div>إجابتك: <span class="student-ans">${userText || 'لم تقدم إجابة'}</span></div>
+                            ${!isCorrect ? `<div>الإجابة الصحيحة: <span class="correct-ans">${r.essayAnswer || '—'}</span></div>` : ''}
+                        </div>
+                    `;
+                } else {
+                    const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
+                    const correctIndex = (r.correctAnswer !== null && r.correctAnswer !== undefined) ? r.correctAnswer : 0;
+                    const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
+                    const correctLetter = (correctIndex >= 0 && correctIndex < LETTERS.length) ? LETTERS[correctIndex] : '—';
+                    const isWrong = userAns >= 0 && !isCorrect;
+                    const isUnanswered = userAns < 0;
+                    
+                    answerDetail = `
+                        ${isCorrect ? '✓' : isWrong ? '✗' : '—'}
+                        إجابتك: <span class="student-ans">${selectedLetter}</span>
+                        ${!isCorrect ? ` · الإجابة الصحيحة: <span class="correct-ans">${correctLetter}</span>` : ''}
+                    `;
+                }
 
                 reviewHtml += `<div class="${cls}">
                     <span class="q-preview">Q${i+1}</span>
                     <span class="answer-detail">
-                        ${isCorrect ? '✓' : isWrong ? '✗' : '—'}
-                        إجابتك: <span class="student-ans">${selectedLetter}</span>
-                        ${!isCorrect ? ` · الإجابة الصحيحة: <span class="correct-ans">${correctLetter}</span>` : ''}
+                        ${answerDetail}
                     </span>
                 </div>`;
             });
@@ -1139,12 +1235,21 @@
             reportLines.push('— الإجابات الخاطئة —');
             let hasWrong = false;
             results.forEach((r, i) => {
-                const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
-                if (userAns >= 0 && !r.isCorrect) {
-                    hasWrong = true;
-                    const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
-                    const correctLetter = (r.correctAnswer >= 0 && r.correctAnswer < LETTERS.length) ? LETTERS[r.correctAnswer] : '—';
-                    reportLines.push(`Q${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
+                const answerMode = r.answerMode || 'multiple';
+                if (answerMode === 'essay') {
+                    const userText = (r.userAnswer !== null && r.userAnswer !== undefined) ? String(r.userAnswer).trim() : '';
+                    if (!r.isCorrect && userText) {
+                        hasWrong = true;
+                        reportLines.push(`Q${i+1} (مقالي): إجابتك "${userText}" | الصحيح "${r.essayAnswer || ''}"`);
+                    }
+                } else {
+                    const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
+                    if (userAns >= 0 && !r.isCorrect) {
+                        hasWrong = true;
+                        const selectedLetter = (userAns >= 0 && userAns < LETTERS.length) ? LETTERS[userAns] : '—';
+                        const correctLetter = (r.correctAnswer >= 0 && r.correctAnswer < LETTERS.length) ? LETTERS[r.correctAnswer] : '—';
+                        reportLines.push(`Q${i+1}: إجابتك ${selectedLetter} | الصحيح ${correctLetter}`);
+                    }
                 }
             });
             if (!hasWrong) reportLines.push('جميع الإجابات صحيحة!');
