@@ -4,45 +4,15 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
 const path = require('path');
-const multer = require('multer');
-const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ====== إعداد Multer لرفع الصور ======
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only images are allowed'));
-        }
-    }
-});
-
 // Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(bodyParser.json());
 app.use(express.static('public'));
-
-// ====== مسارات إضافية للواجهة ======
-app.get('/upload-exam', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'upload-exam.html'));
-});
-
-app.get('/upload-image-exam', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'upload-image-exam.html'));
-});
-
-// ====== صفحة تحويل الصور إلى أسئلة (OCR) ======
-app.get('/upload-ocr-exam', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'upload-ocr-exam.html'));
-});
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_123456789';
@@ -77,8 +47,7 @@ let inMemoryData = {
     exams: [],
     questions: [],
     submissions: [],
-    cheats: [],
-    examImages: []
+    cheats: []
 };
 let nextId = 1;
 
@@ -514,54 +483,6 @@ async function clearCheatReports() {
     return true;
 }
 
-// ====== EXAM IMAGES (لحفظ صور الامتحانات) ======
-async function saveExamImage(data) {
-    if (firestoreAvailable && db) {
-        try {
-            const docRef = await db.collection('examImages').add(data);
-            return { id: docRef.id, ...data };
-        } catch (error) {
-            console.error('Error saving exam image:', error);
-            return null;
-        }
-    }
-    data.id = nextId++;
-    inMemoryData.examImages.push(data);
-    return data;
-}
-
-async function getExamImages() {
-    if (firestoreAvailable && db) {
-        try {
-            const snapshot = await db.collection('examImages').orderBy('createdAt', 'desc').get();
-            if (!snapshot.empty) {
-                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            }
-        } catch (error) {
-            console.error('Error fetching exam images:', error);
-        }
-    }
-    return inMemoryData.examImages;
-}
-
-async function deleteExamImage(id) {
-    if (firestoreAvailable && db) {
-        try {
-            await db.collection('examImages').doc(id).delete();
-            return true;
-        } catch (error) {
-            console.error('Error deleting exam image:', error);
-            return false;
-        }
-    }
-    const index = inMemoryData.examImages.findIndex(e => e.id == id);
-    if (index !== -1) {
-        inMemoryData.examImages.splice(index, 1);
-        return true;
-    }
-    return false;
-}
-
 // ========== MIDDLEWARE ==========
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -673,7 +594,6 @@ app.get('/api/exams', authenticateToken, async (req, res) => {
     }
 });
 
-// ====== إنشاء امتحان يدوي ======
 app.post('/api/exams', authenticateToken, async (req, res) => {
     try {
         const { groupId, groupSlug, questions } = req.body;
@@ -686,7 +606,6 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
             groupSlug,
             questionsCount: questions.length,
             isPublished: true,
-            examType: 'manual',
             createdAt: new Date().toISOString()
         };
 
@@ -695,8 +614,7 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
             const examQuestions = questions.map((q, idx) => ({
                 ...q,
                 id: idx + 1,
-                examId: savedExam.id,
-                questionType: q.questionType || 'multiple_choice'
+                examId: savedExam.id
             }));
             await saveQuestions(examQuestions);
             res.json(savedExam);
@@ -704,152 +622,6 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
             res.status(500).json({ error: 'Failed to save exam' });
         }
     } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ====== إنشاء امتحان من الصور (تظهر الصور مع الأسئلة) ======
-app.post('/api/exams/image', authenticateToken, upload.array('images', 20), async (req, res) => {
-    try {
-        const { groupId, groupSlug, questionType, questions, examType } = req.body;
-        const files = req.files;
-
-        if (!groupId || !groupSlug) {
-            return res.status(400).json({ error: 'Group ID and slug required' });
-        }
-
-        let parsedQuestions = [];
-        
-        if (questions) {
-            try {
-                parsedQuestions = JSON.parse(questions);
-            } catch (e) {
-                parsedQuestions = [];
-            }
-        }
-
-        if (files && files.length > 0) {
-            const imageData = files.map(file => ({
-                filename: file.originalname,
-                mimeType: file.mimetype,
-                size: file.size,
-                data: file.buffer.toString('base64'),
-                createdAt: new Date().toISOString()
-            }));
-
-            for (const img of imageData) {
-                await saveExamImage({
-                    groupId,
-                    groupSlug,
-                    ...img
-                });
-            }
-
-            if (parsedQuestions.length === 0) {
-                parsedQuestions = imageData.map((img, index) => ({
-                    text: `سؤال ${index + 1}`,
-                    options: ['الخيار A', 'الخيار B', 'الخيار C', 'الخيار D'],
-                    correct: 0,
-                    questionType: questionType || 'multiple_choice',
-                    imageData: img.data,
-                    imageMime: img.mimeType
-                }));
-            }
-        }
-
-        if (parsedQuestions.length === 0) {
-            return res.status(400).json({ error: 'No questions or images provided' });
-        }
-
-        const exam = {
-            groupId,
-            groupSlug,
-            questionsCount: parsedQuestions.length,
-            isPublished: true,
-            examType: examType || 'image',
-            questionType: questionType || 'multiple_choice',
-            createdAt: new Date().toISOString()
-        };
-
-        const savedExam = await saveExam(exam);
-        if (savedExam) {
-            const examQuestions = parsedQuestions.map((q, idx) => ({
-                ...q,
-                id: idx + 1,
-                examId: savedExam.id,
-                questionType: q.questionType || questionType || 'multiple_choice'
-            }));
-            await saveQuestions(examQuestions);
-            res.json({ success: true, exam: savedExam, questionsCount: examQuestions.length });
-        } else {
-            res.status(500).json({ error: 'Failed to save exam' });
-        }
-    } catch (error) {
-        console.error('Error creating image exam:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// ====== إنشاء امتحان من صور مع OCR (تحويل إلى أسئلة نصية) ======
-app.post('/api/exams/ocr', authenticateToken, upload.array('images', 20), async (req, res) => {
-    try {
-        const { groupId, groupSlug, questionType, questions, examType } = req.body;
-        const files = req.files;
-
-        if (!groupId || !groupSlug) {
-            return res.status(400).json({ error: 'Group ID and slug required' });
-        }
-
-        let parsedQuestions = [];
-        if (questions) {
-            try {
-                parsedQuestions = JSON.parse(questions);
-            } catch (e) {
-                parsedQuestions = [];
-            }
-        }
-
-        // إذا كانت هناك صور مرفوعة ولم تكن هناك أسئلة محللة
-        if (files && files.length > 0 && parsedQuestions.length === 0) {
-            parsedQuestions = files.map((file, index) => ({
-                text: `سؤال من الصورة ${index + 1}: ${file.originalname}`,
-                options: ['الخيار A', 'الخيار B', 'الخيار C', 'الخيار D'],
-                correct: 0,
-                questionType: questionType || 'multiple_choice',
-                imageData: file.buffer.toString('base64'),
-                imageMime: file.mimetype
-            }));
-        }
-
-        if (parsedQuestions.length === 0) {
-            return res.status(400).json({ error: 'No questions or images provided' });
-        }
-
-        const exam = {
-            groupId,
-            groupSlug,
-            questionsCount: parsedQuestions.length,
-            isPublished: true,
-            examType: examType || 'ocr',
-            questionType: questionType || 'multiple_choice',
-            createdAt: new Date().toISOString()
-        };
-
-        const savedExam = await saveExam(exam);
-        if (savedExam) {
-            const examQuestions = parsedQuestions.map((q, idx) => ({
-                ...q,
-                id: idx + 1,
-                examId: savedExam.id,
-                questionType: q.questionType || questionType || 'multiple_choice'
-            }));
-            await saveQuestions(examQuestions);
-            res.json({ success: true, exam: savedExam, questionsCount: examQuestions.length });
-        } else {
-            res.status(500).json({ error: 'Failed to save exam' });
-        }
-    } catch (error) {
-        console.error('Error creating OCR exam:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -909,8 +681,10 @@ app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'No questions provided' });
         }
 
+        // Delete old questions
         await deleteQuestionsByExamId(examId);
         
+        // Add new questions
         const examQuestions = questions.map((q, idx) => ({
             ...q,
             id: idx + 1,
@@ -919,6 +693,7 @@ app.put('/api/exams/:id/questions', authenticateToken, async (req, res) => {
         
         const saved = await saveQuestions(examQuestions);
         if (saved) {
+            // Update question count in exam
             if (firestoreAvailable && db) {
                 await db.collection('exams').doc(examId).update({ questionsCount: questions.length });
             } else {
@@ -969,13 +744,7 @@ app.get('/api/exam/:slug', async (req, res) => {
         const questions = await getQuestionsByExamId(exam.id);
         console.log('Questions returned:', questions.length);
         
-        // إزالة بيانات الصور من الأسئلة (لتصغير حجم البيانات)
-        const questionsForStudent = questions.map(q => {
-            const { imageData, ...rest } = q;
-            return rest;
-        });
-        
-        res.json({ exam, questions: questionsForStudent });
+        res.json({ exam, questions });
     } catch (error) {
         console.error('Error in /api/exam/:slug:', error);
         res.status(500).json({ error: error.message });
@@ -1006,36 +775,16 @@ app.post('/api/submit-exam', async (req, res) => {
 
         questions.forEach((q, idx) => {
             const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? answers[idx] : -1;
-            
-            // معالجة الأسئلة المقالية
-            if (q.questionType === 'essay') {
-                results.push({
-                    questionId: q.id,
-                    questionText: q.text,
-                    options: q.options || [],
-                    userAnswer: userAnswer,
-                    correctAnswer: null,
-                    isCorrect: null,
-                    isEssay: true,
-                    needsReview: true,
-                    imageData: q.imageData || null,
-                    imageMime: q.imageMime || null
-                });
-            } else {
-                const isCorrect = userAnswer === q.correct;
-                if (isCorrect) correctCount++;
-                results.push({
-                    questionId: q.id,
-                    questionText: q.text,
-                    options: q.options,
-                    userAnswer: userAnswer,
-                    correctAnswer: q.correct,
-                    isCorrect,
-                    isEssay: false,
-                    imageData: q.imageData || null,
-                    imageMime: q.imageMime || null
-                });
-            }
+            const isCorrect = userAnswer === q.correct;
+            if (isCorrect) correctCount++;
+            results.push({
+                questionId: q.id,
+                questionText: q.text,
+                options: q.options,
+                userAnswer: userAnswer,
+                correctAnswer: q.correct,
+                isCorrect
+            });
         });
 
         const submission = {
@@ -1047,9 +796,7 @@ app.post('/api/submit-exam', async (req, res) => {
             correct: correctCount,
             score: Math.round((correctCount / questions.length) * 100),
             results,
-            cheatLog: cheatLog || [],
-            examType: exam.examType || 'manual',
-            needsReview: results.some(r => r.needsReview)
+            cheatLog: cheatLog || []
         };
 
         const saved = await saveSubmission(submission);
@@ -1121,6 +868,7 @@ app.delete('/api/cheats', authenticateToken, async (req, res) => {
     }
 });
 
+// ====== DELETE SINGLE CHEAT REPORT ======
 app.delete('/api/cheats/:id', authenticateToken, async (req, res) => {
     try {
         const id = req.params.id;
@@ -1141,25 +889,6 @@ app.delete('/api/cheats/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// ====== الحصول على صور الامتحانات ======
-app.get('/api/exam-images', authenticateToken, async (req, res) => {
-    try {
-        const images = await getExamImages();
-        res.json(images);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.delete('/api/exam-images/:id', authenticateToken, async (req, res) => {
-    try {
-        const deleted = await deleteExamImage(req.params.id);
-        res.json({ success: deleted });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // ========== FRONTEND ROUTES ==========
 
 // Login page
@@ -1172,21 +901,6 @@ app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// Upload exam page (manual)
-app.get('/upload-exam', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'upload-exam.html'));
-});
-
-// Upload image exam page (صور تظهر كصور)
-app.get('/upload-image-exam', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'upload-image-exam.html'));
-});
-
-// Upload OCR exam page (تحويل الصور إلى أسئلة)
-app.get('/upload-ocr-exam', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'upload-ocr-exam.html'));
-});
-
 // Home page - shows 404
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -1196,11 +910,13 @@ app.get('/', (req, res) => {
 app.get('/:groupSlug', (req, res) => {
     const slug = req.params.groupSlug;
     
-    const reservedPaths = ['login', 'dashboard', 'api', 'favicon.ico', 'robots.txt', 'upload-exam', 'upload-image-exam', 'upload-ocr-exam'];
+    // Exclude special paths
+    const reservedPaths = ['login', 'dashboard', 'api', 'favicon.ico', 'robots.txt'];
     if (reservedPaths.includes(slug) || slug.includes('.')) {
         return res.sendFile(path.join(__dirname, 'public', 'index.html'));
     }
     
+    // Pass slug to frontend by sending index.html
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
