@@ -596,7 +596,7 @@ app.get('/api/exams', authenticateToken, async (req, res) => {
 
 app.post('/api/exams', authenticateToken, async (req, res) => {
     try {
-        const { groupId, groupSlug, questions, examType } = req.body;
+        const { groupId, groupSlug, questions } = req.body;
         if (!groupId || !questions || questions.length === 0) {
             return res.status(400).json({ error: 'Group ID and questions required' });
         }
@@ -604,7 +604,6 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
         const exam = {
             groupId,
             groupSlug,
-            examType: examType || 'manual',
             questionsCount: questions.length,
             isPublished: true,
             createdAt: new Date().toISOString()
@@ -772,40 +771,20 @@ app.post('/api/submit-exam', async (req, res) => {
 
         const questions = await getQuestionsByExamId(exam.id);
         let correctCount = 0;
-        let essayPending = 0;
         const results = [];
 
         questions.forEach((q, idx) => {
-            const answerMode = q.answerMode || 'multiple';
-            const qType = q.type || 'manual';
-            const result = {
+            const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? answers[idx] : -1;
+            const isCorrect = userAnswer === q.correct;
+            if (isCorrect) correctCount++;
+            results.push({
                 questionId: q.id,
-                questionText: q.text || '',
-                image: q.image || null,
-                options: q.options || [],
-                answerMode,
-                type: qType
-            };
-
-            if (answerMode === 'essay') {
-                const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? String(answers[idx]).trim() : '';
-                result.essayAnswer = q.essayAnswer || '';
-                result.userAnswer = userAnswer;
-                const expectedLower = (q.essayAnswer || '').trim().toLowerCase();
-                const userLower = userAnswer.toLowerCase();
-                const isCorrect = expectedLower !== '' && userLower !== '' && userLower === expectedLower;
-                if (isCorrect) correctCount++;
-                if (!isCorrect && userAnswer !== '') essayPending++;
-                result.isCorrect = isCorrect;
-            } else {
-                const userAnswer = answers[idx] !== undefined && answers[idx] !== null ? answers[idx] : -1;
-                const isCorrect = userAnswer === q.correct;
-                if (isCorrect) correctCount++;
-                result.userAnswer = userAnswer;
-                result.correctAnswer = q.correct;
-                result.isCorrect = isCorrect;
-            }
-            results.push(result);
+                questionText: q.text,
+                options: q.options,
+                userAnswer: userAnswer,
+                correctAnswer: q.correct,
+                isCorrect
+            });
         });
 
         const submission = {
@@ -816,7 +795,6 @@ app.post('/api/submit-exam', async (req, res) => {
             total: questions.length,
             correct: correctCount,
             score: Math.round((correctCount / questions.length) * 100),
-            essayPending,
             results,
             cheatLog: cheatLog || []
         };
