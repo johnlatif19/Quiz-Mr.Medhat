@@ -90,6 +90,45 @@
             gap: 10px;
         }
 
+        /* ===== زر إنشاء الامتحان ===== */
+        .create-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .create-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .create-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .create-btn.manual {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+        .create-btn.images {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+        }
+        .create-btn.ocr {
+            background: linear-gradient(135deg, #8e44ad, #9b59b6);
+        }
+        .create-btn .icon { font-size: 22px; }
+        .create-btn .label { font-size: 14px; }
+        .create-btn .sub-label { font-size: 11px; opacity: 0.8; font-weight: 400; display: block; }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -201,23 +240,6 @@
             font-weight: 600;
             color: #2c6f9c;
         }
-        .question-item .options-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 5px;
-        }
-        .question-item .options-list .opt {
-            background: white;
-            padding: 2px 10px;
-            border-radius: 4px;
-            border: 1px solid #dce4ec;
-            font-size: 13px;
-        }
-        .question-item .options-list .opt.correct {
-            background: #d4edda;
-            border-color: #27ae60;
-        }
 
         .submission-item {
             border: 1px solid #e8edf3;
@@ -261,37 +283,32 @@
             font-weight: 600;
         }
 
-        .badge {
+        .exam-type-badge {
             display: inline-block;
-            padding: 2px 10px;
+            padding: 2px 12px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
         }
-        .badge-correct { background: #d4edda; color: #155724; }
-        .badge-wrong { background: #f8d7da; color: #721c24; }
-        .badge-unanswered { background: #fff3cd; color: #856404; }
+        .exam-type-badge.manual { background: #d4edda; color: #155724; }
+        .exam-type-badge.image { background: #cce5ff; color: #004085; }
+        .exam-type-badge.ocr { background: #e8d5f5; color: #6c3483; }
 
-        .answer-detail-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 12px;
-            border-bottom: 1px solid #e8edf3;
-            font-size: 14px;
-            flex-wrap: wrap;
-            gap: 5px;
-        }
-        .answer-detail-item .q-text { flex: 1; margin-right: 10px; }
-        .answer-detail-item .user-ans { font-weight: 600; margin: 0 10px; }
-        .answer-detail-item .correct-ans { color: #27ae60; font-weight: 600; }
-
-        .group-chip {
-            display: inline-block;
-            background: #e8edf3;
-            padding: 4px 12px;
-            border-radius: 20px;
+        .cheat-notification {
+            background: #fff3cd;
+            border: 1px solid #f39c12;
+            padding: 8px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
             font-size: 13px;
-            margin: 3px;
+        }
+        .cheat-notification .cheat-time {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .cheat-notification .cheat-actions {
+            margin-top: 5px;
         }
 
         .full-exam-question {
@@ -330,73 +347,25 @@
             border-color: #27ae60;
             border-width: 3px;
         }
-
-        .cheat-notification {
-            background: #fff3cd;
-            border: 1px solid #f39c12;
-            padding: 8px 15px;
-            border-radius: 6px;
-            margin-bottom: 8px;
-            font-size: 13px;
-        }
-        .cheat-notification .cheat-time {
-            color: #7f8c8d;
-            font-size: 12px;
-            margin-left: 10px;
-        }
-        .cheat-notification .cheat-actions {
-            margin-top: 5px;
+        .exam-question-image {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 8px;
+            border: 1px solid #dce4ec;
+            margin: 8px 0;
         }
 
-        .exam-type-badge {
-            display: inline-block;
-            padding: 2px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        .exam-type-badge.manual { background: #d4edda; color: #155724; }
-        .exam-type-badge.image { background: #cce5ff; color: #004085; }
-        .exam-type-badge.mixed { background: #fff3cd; color: #856404; }
-
-        .btn-upload {
-            display: inline-block;
-            padding: 10px 20px;
-            background: #28a745;
+        .needs-review {
+            background: #f39c12;
             color: white;
-            border: none;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            margin: 5px;
-        }
-        .btn-upload:hover { background: #218838; }
-        .btn-upload-image {
-            display: inline-block;
-            padding: 10px 20px;
-            background: #17a2b8;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            margin: 5px;
-        }
-        .btn-upload-image:hover { background: #138496; }
-
-        .essay-badge {
-            background: #fff3cd;
-            color: #856404;
             padding: 2px 10px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: 600;
         }
-        .needs-review {
-            background: #f39c12;
-            color: white;
+        .essay-badge {
+            background: #fff3cd;
+            color: #856404;
             padding: 2px 10px;
             border-radius: 20px;
             font-size: 11px;
@@ -409,6 +378,8 @@
             .tabs { justify-content: center; }
             table { font-size: 12px; }
             table th, table td { padding: 6px; }
+            .create-buttons { flex-direction: column; }
+            .create-btn { justify-content: center; }
         }
     </style>
 </head>
@@ -424,10 +395,23 @@
             </div>
         </div>
 
-        <!-- Quick Upload Buttons -->
-        <div style="margin-bottom:20px;display:flex;flex-wrap:wrap;gap:10px;">
-            <a href="/upload-exam" class="btn-upload">📝 إنشاء امتحان يدوي</a>
-            <a href="/upload-image-exam" class="btn-upload-image">🖼️ إنشاء امتحان من صور</a>
+        <!-- 3 Ways to Create Exam -->
+        <div class="card">
+            <div style="font-size:16px;font-weight:600;color:#1a2a3a;margin-bottom:15px;">📝 إنشاء امتحان جديد</div>
+            <div class="create-buttons">
+                <a href="/upload-exam" class="create-btn manual">
+                    <span class="icon">✏️</span>
+                    <span class="label">يدوي <span class="sub-label">كتابة الأسئلة</span></span>
+                </a>
+                <a href="/upload-image-exam" class="create-btn images">
+                    <span class="icon">🖼️</span>
+                    <span class="label">صور <span class="sub-label">صور + أسئلة</span></span>
+                </a>
+                <a href="/upload-ocr-exam" class="create-btn ocr">
+                    <span class="icon">🤖</span>
+                    <span class="label">تحويل صور إلى أسئلة <span class="sub-label">OCR ذكي</span></span>
+                </a>
+            </div>
         </div>
 
         <!-- Tabs -->
@@ -456,10 +440,6 @@
             <div class="card">
                 <div class="card-title">
                     <span>الامتحانات</span>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                        <a href="/upload-exam" class="btn btn-success" style="text-decoration:none;">📝 يدوي</a>
-                        <a href="/upload-image-exam" class="btn btn-primary" style="text-decoration:none;background:#17a2b8;">🖼️ من صور</a>
-                    </div>
                 </div>
                 <div id="examsContainer">
                     <div class="empty-state">جاري تحميل الامتحانات...</div>
@@ -539,7 +519,7 @@
         </div>
     </div>
 
-    <!-- Modal: Student Answers (Full Exam View) -->
+    <!-- Modal: Student Answers -->
     <div class="modal" id="answersModal">
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
@@ -662,7 +642,6 @@
             }
         }
 
-        // تحديث محاولات الغش كل 5 ثواني
         setInterval(() => {
             if (document.getElementById('cheatsTab').classList.contains('active')) {
                 loadCheats();
@@ -766,10 +745,7 @@
                 const data = await response.json();
                 if (data.length === 0) {
                     container.innerHTML = `<div class="empty-state">
-                        لا توجد امتحانات. 
-                        <br><br>
-                        <a href="/upload-exam" class="btn btn-success" style="text-decoration:none;">📝 إنشاء امتحان يدوي</a>
-                        <a href="/upload-image-exam" class="btn btn-primary" style="text-decoration:none;background:#17a2b8;">🖼️ إنشاء امتحان من صور</a>
+                        لا توجد امتحانات. استخدم الأزرار أعلاه لإنشاء امتحان جديد.
                     </div>`;
                     return;
                 }
@@ -780,8 +756,8 @@
                     const link = `${window.location.origin}/${exam.groupSlug}`;
                     const status = exam.isPublished ? 'منشور' : 'غير منشور';
                     const examType = exam.examType || 'manual';
-                    const typeLabel = examType === 'manual' ? 'يدوي' : examType === 'image' ? 'صور' : 'مختلط';
-                    const typeClass = examType === 'manual' ? 'manual' : examType === 'image' ? 'image' : 'mixed';
+                    const typeLabel = examType === 'manual' ? 'يدوي' : examType === 'image' ? 'صور' : 'OCR';
+                    const typeClass = examType === 'manual' ? 'manual' : examType === 'image' ? 'image' : 'ocr';
                     html += `<tr>
                         <td>${i + 1}</td>
                         <td>${exam.groupName || exam.groupSlug}</td>
@@ -859,7 +835,7 @@
                 let html = `<div style="margin-bottom:15px;padding:10px;background:#f7f9fc;border-radius:8px;">
                     <strong>المجموعة الحالية:</strong> ${exam.groupName || exam.groupSlug}
                     <span style="margin-left:20px;"><strong>عدد الأسئلة:</strong> ${questions.length}</span>
-                    <span style="margin-left:20px;"><strong>النوع:</strong> ${exam.examType === 'image' ? 'صور' : 'يدوي'}</span>
+                    <span style="margin-left:20px;"><strong>النوع:</strong> ${exam.examType === 'image' ? 'صور' : exam.examType === 'ocr' ? 'OCR' : 'يدوي'}</span>
                 </div>`;
 
                 if (questions.length === 0) {
@@ -868,12 +844,14 @@
                     const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
                     questions.forEach((q, idx) => {
                         const isEssay = q.questionType === 'essay';
+                        const hasImage = q.imageData && q.imageData.length > 0;
                         html += `
-                            <div class="question-item" style="border:2px solid ${isEssay ? '#f39c12' : '#2c6f9c'};">
+                            <div class="question-item" style="border:2px solid ${isEssay ? '#f39c12' : hasImage ? '#2980b9' : '#2c6f9c'};">
                                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px;">
-                                    <div class="q-number">السؤال ${idx + 1} ${isEssay ? '<span class="essay-badge">📝 مقالي</span>' : ''}</div>
+                                    <div class="q-number">السؤال ${idx + 1} ${isEssay ? '<span class="essay-badge">📝 مقالي</span>' : ''} ${hasImage ? '<span style="background:#cce5ff;color:#004085;padding:2px 10px;border-radius:20px;font-size:11px;">🖼️ صورة</span>' : ''}</div>
                                     <button type="button" class="btn btn-danger btn-sm" onclick="deleteQuestionFromExam('${examId}', '${q.id}')">حذف هذا السؤال</button>
                                 </div>
+                                ${hasImage ? `<div><img src="${q.imageData}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #dce4ec;margin:5px 0;"></div>` : ''}
                                 <div class="form-group" style="margin-top:5px;">
                                     <input type="text" id="edit_q_text_${idx}" value="${q.text ? q.text.replace(/"/g, '&quot;') : ''}" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
                                 </div>
@@ -882,25 +860,24 @@
                                         <label style="font-size:12px;">إجابة نموذجية</label>
                                         <textarea id="edit_q_essay_${idx}" rows="2" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">${q.essayAnswer || ''}</textarea>
                                     </div>
-                                    <div style="color:#7f8c8d;font-size:13px;">⚠️ الأسئلة المقالية تحتاج إلى تقييم يدوي</div>
-                                ` : `
+                                ` : (q.options && q.options.length > 0 ? `
                                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                                    ${q.options ? q.options.map((opt, oi) => `
+                                    ${q.options.map((opt, oi) => `
                                         <div class="form-group" style="flex:1;min-width:80px;">
                                             <label style="font-size:12px;">${letters[oi]}</label>
                                             <input type="text" id="edit_q_opt_${idx}_${oi}" value="${opt ? opt.replace(/"/g, '&quot;') : ''}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
                                         </div>
-                                    `).join('') : ''}
+                                    `).join('')}
                                 </div>
                                 <div class="form-group" style="margin-top:5px;">
                                     <label style="font-size:12px;">الإجابة الصحيحة</label>
                                     <select id="edit_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
-                                        ${q.options ? q.options.map((opt, oi) => `
+                                        ${q.options.map((opt, oi) => `
                                             <option value="${oi}" ${oi === q.correct ? 'selected' : ''}>${letters[oi]}</option>
-                                        `).join('') : ''}
+                                        `).join('')}
                                     </select>
                                 </div>
-                                `}
+                                ` : '')}
                             </div>
                         `;
                     });
@@ -929,7 +906,7 @@
             const container = document.getElementById('newQuestionContainer');
             const idx = window._editExamQuestions ? window._editExamQuestions.length + newQuestionCounter : newQuestionCounter;
             const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-            const isEssay = window._editExamType === 'image';
+            const isEssay = window._editExamType === 'image' || window._editExamType === 'ocr';
             
             container.innerHTML += `
                 <div class="question-item" style="border:2px solid #27ae60;margin-top:10px;" id="new_q_${idx}">
@@ -945,7 +922,6 @@
                             <label style="font-size:12px;">إجابة نموذجية</label>
                             <textarea id="new_q_essay_${idx}" rows="2" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;"></textarea>
                         </div>
-                        <div style="color:#7f8c8d;font-size:13px;">⚠️ الأسئلة المقالية تحتاج إلى تقييم يدوي</div>
                         <input type="hidden" id="new_q_type_${idx}" value="essay">
                     ` : `
                     <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1007,7 +983,9 @@
                             options: [], 
                             correct: null, 
                             questionType: 'essay',
-                            essayAnswer: essayAnswer
+                            essayAnswer: essayAnswer,
+                            imageData: existingQuestions[i].imageData || '',
+                            imageMime: existingQuestions[i].imageMime || ''
                         });
                     }
                 } else {
@@ -1018,7 +996,15 @@
                     }
                     const correct = parseInt(document.getElementById(`edit_q_correct_${i}`)?.value || 0);
                     if (text && options.length >= 2) {
-                        questions.push({ id: existingQuestions[i].id, text, options, correct, questionType: 'multiple_choice' });
+                        questions.push({ 
+                            id: existingQuestions[i].id, 
+                            text, 
+                            options, 
+                            correct, 
+                            questionType: 'multiple_choice',
+                            imageData: existingQuestions[i].imageData || '',
+                            imageMime: existingQuestions[i].imageMime || ''
+                        });
                     }
                 }
             }
@@ -1032,7 +1018,7 @@
                 if (qType === 'essay') {
                     const essayAnswer = document.getElementById(`new_q_essay_${i}`)?.value?.trim() || '';
                     if (text) {
-                        questions.push({ text, options: [], correct: null, questionType: 'essay', essayAnswer });
+                        questions.push({ text, options: [], correct: null, questionType: 'essay', essayAnswer, imageData: '', imageMime: '' });
                     }
                 } else {
                     const options = [];
@@ -1042,13 +1028,13 @@
                     }
                     const correct = parseInt(document.getElementById(`new_q_correct_${i}`)?.value || 0);
                     if (text && options.length >= 2) {
-                        questions.push({ text, options, correct, questionType: 'multiple_choice' });
+                        questions.push({ text, options, correct, questionType: 'multiple_choice', imageData: '', imageMime: '' });
                     }
                 }
             }
 
             if (questions.length === 0) {
-                alert('لا توجد أسئلة صالحة. كل سؤال يحتاج إلى نص وخيارين على الأقل (لأسئلة الاختيار من متعدد).');
+                alert('لا توجد أسئلة صالحة.');
                 return;
             }
 
@@ -1229,9 +1215,11 @@
                         const userLetter = userAns >= 0 && !isEssay ? letters[userAns] : (isEssay ? (r.userAnswer || '') : '—');
                         const correctLetter = correctAns >= 0 && !isEssay ? letters[correctAns] : (isEssay ? (r.correctAnswer || '') : '—');
                         const isCorrect = r.isCorrect === true;
+                        const hasImage = r.imageData && r.imageData.length > 0;
                         
                         html += `
                             <div class="full-exam-question" style="${isEssay ? 'border-left:4px solid #f39c12;' : isCorrect ? 'border-left:4px solid #27ae60;' : 'border-left:4px solid #e74c3c;'}">
+                                ${hasImage ? `<div><img src="${r.imageData}" class="exam-question-image"></div>` : ''}
                                 <div class="q-text">${i+1}. ${r.questionText || 'سؤال'} ${isEssay ? '<span class="essay-badge">📝 مقالي</span>' : ''}</div>
                                 ${!isEssay && r.options ? `
                                 <div class="options-show">
