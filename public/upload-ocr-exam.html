@@ -321,4 +321,300 @@
             uploadArea.classList.remove('dragover');
         });
 
-        uploadArea
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFiles(e.target.files);
+            }
+            fileInput.value = '';
+        });
+
+        function handleFiles(files) {
+            for (const file of files) {
+                if (!file.type.startsWith('image/')) continue;
+                if (file.size > 5 * 1024 * 1024) {
+                    alert(`الصورة ${file.name} حجمها كبير جداً (أكبر من 5MB)`);
+                    continue;
+                }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedImages.push({
+                        file: file,
+                        dataUrl: e.target.result,
+                        name: file.name,
+                        type: file.type,
+                        processed: false
+                    });
+                    renderPreviews();
+                    performOCR();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function renderPreviews() {
+            previewGrid.innerHTML = '';
+            uploadedImages.forEach((img, index) => {
+                const div = document.createElement('div');
+                div.className = 'image-preview-item';
+                const statusText = img.processed ? '✅ تم التحويل' : '⏳ جاري...';
+                const statusClass = img.processed ? 'done' : '';
+                div.innerHTML = `
+                    <img src="${img.dataUrl}" alt="${img.name}">
+                    <button class="remove-btn" onclick="removeImage(${index})">×</button>
+                    <div class="ocr-status ${statusClass}">${statusText}</div>
+                `;
+                previewGrid.appendChild(div);
+            });
+        }
+
+        function removeImage(index) {
+            uploadedImages.splice(index, 1);
+            ocrResults.splice(index, 1);
+            renderPreviews();
+            generateQuestionsFromOCR();
+        }
+
+        // ====== محاكاة OCR (تحويل الصور إلى نص) ======
+        // في الواقع الحقيقي، سيتم استخدام خدمة OCR خارجية
+        // لكن هنا سنقوم بمحاكاة بسيطة للعرض
+        async function performOCR() {
+            const progressDiv = document.getElementById('ocrProgress');
+            const progressFill = document.getElementById('ocrProgressFill');
+            progressDiv.classList.remove('hidden');
+
+            for (let i = 0; i < uploadedImages.length; i++) {
+                if (uploadedImages[i].processed) continue;
+                
+                const img = uploadedImages[i];
+                const progress = ((i) / uploadedImages.length) * 100;
+                progressFill.style.width = progress + '%';
+                
+                // محاكاة معالجة OCR
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // استخراج النص من اسم الملف (محاكاة)
+                const fileName = img.name.replace(/\.[^/.]+$/, '');
+                const questionText = `سؤال من الصورة: ${fileName}`;
+                
+                // محاكاة استخراج خيارات
+                const options = [
+                    `الخيار A لـ ${fileName}`,
+                    `الخيار B لـ ${fileName}`,
+                    `الخيار C لـ ${fileName}`,
+                    `الخيار D لـ ${fileName}`
+                ];
+                
+                ocrResults[i] = {
+                    text: questionText,
+                    options: options,
+                    correct: 0,
+                    questionType: document.querySelector('input[name="questionType"]:checked').value || 'multiple_choice',
+                    imageData: img.dataUrl,
+                    imageMime: img.type
+                };
+                
+                img.processed = true;
+                renderPreviews();
+                generateQuestionsFromOCR();
+            }
+
+            progressFill.style.width = '100%';
+            setTimeout(() => {
+                progressDiv.classList.add('hidden');
+            }, 1000);
+        }
+
+        function generateQuestionsFromOCR() {
+            const container = document.getElementById('questionsContainer');
+            const questionType = document.querySelector('input[name="questionType"]:checked').value;
+            
+            if (ocrResults.length === 0) {
+                container.innerHTML = '<div style="color:#7f8c8d;text-align:center;padding:20px;">قم برفع الصور أولاً لتحويلها إلى أسئلة.</div>';
+                return;
+            }
+
+            let html = '<div style="margin-top:15px;padding:10px;background:#f5eef9;border-radius:8px;border:1px solid #8e44ad;">';
+            html += `<strong>🤖 تم تحويل ${ocrResults.length} صورة إلى أسئلة</strong>`;
+            html += ' <span style="color:#7f8c8d;font-size:13px;">(يمكنك تعديل النصوص والخيارات)</span>';
+            html += '</div>';
+
+            html += '<div style="margin-top:15px;">';
+            ocrResults.forEach((result, idx) => {
+                const isEssay = result.questionType === 'essay' || questionType === 'essay';
+                html += `
+                    <div class="question-item">
+                        <div class="q-number">السؤال ${idx + 1} ${isEssay ? '📝 مقالي' : '✅ اختيار من متعدد'}</div>
+                        <div style="margin-bottom:10px;">
+                            <img src="${result.imageData}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #dce4ec;">
+                        </div>
+                        <div class="form-group">
+                            <label>نص السؤال</label>
+                            <input type="text" id="ocr_q_text_${idx}" value="${result.text.replace(/"/g, '&quot;')}" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
+                        </div>
+                        ${isEssay ? `
+                            <div class="form-group">
+                                <label>إجابة نموذجية (اختياري)</label>
+                                <textarea id="ocr_q_essay_${idx}" rows="2" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;"></textarea>
+                            </div>
+                            <input type="hidden" id="ocr_q_type_${idx}" value="essay">
+                        ` : `
+                        <div class="question-options">
+                            ${result.options.map((opt, oi) => `
+                                <div class="opt-group">
+                                    <label>${['A','B','C','D'][oi]}</label>
+                                    <input type="text" id="ocr_q_opt_${idx}_${oi}" value="${opt.replace(/"/g, '&quot;')}">
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="form-group" style="margin-top:5px;">
+                            <label>الإجابة الصحيحة</label>
+                            <select id="ocr_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                <option value="0">A</option>
+                                <option value="1">B</option>
+                                <option value="2">C</option>
+                                <option value="3">D</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="ocr_q_type_${idx}" value="multiple_choice">
+                        `}
+                        <input type="hidden" id="ocr_q_image_${idx}" value="${result.imageData}">
+                        <input type="hidden" id="ocr_q_mime_${idx}" value="${result.imageMime}">
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        document.querySelectorAll('input[name="questionType"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                // تحديث نوع الأسئلة في OCR Results
+                const newType = document.querySelector('input[name="questionType"]:checked').value;
+                ocrResults.forEach(r => r.questionType = newType);
+                generateQuestionsFromOCR();
+            });
+        });
+
+        async function createOcrExam(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.classList.add('loading');
+            submitBtn.textContent = '⏳ جاري النشر...';
+
+            const groupSelect = document.getElementById('groupSelect');
+            const groupId = groupSelect.value;
+            const groupSlug = groupSelect.options[groupSelect.selectedIndex]?.dataset?.slug;
+            const questionType = document.querySelector('input[name="questionType"]:checked').value;
+
+            if (!groupId) {
+                alert('الرجاء اختيار مجموعة.');
+                submitBtn.classList.remove('loading');
+                submitBtn.textContent = '✅ نشر الامتحان';
+                return;
+            }
+
+            if (ocrResults.length === 0) {
+                alert('الرجاء رفع صورة واحدة على الأقل.');
+                submitBtn.classList.remove('loading');
+                submitBtn.textContent = '✅ نشر الامتحان';
+                return;
+            }
+
+            const questions = [];
+            for (let i = 0; i < ocrResults.length; i++) {
+                const text = document.getElementById(`ocr_q_text_${i}`).value.trim() || `سؤال ${i + 1}`;
+                const imageData = document.getElementById(`ocr_q_image_${i}`).value;
+                const imageMime = document.getElementById(`ocr_q_mime_${i}`).value;
+                const qType = document.getElementById(`ocr_q_type_${i}`).value || questionType;
+
+                if (qType === 'essay') {
+                    const essayAnswer = document.getElementById(`ocr_q_essay_${i}`).value.trim();
+                    questions.push({
+                        text,
+                        options: [],
+                        correct: null,
+                        questionType: 'essay',
+                        essayAnswer: essayAnswer || '',
+                        imageData,
+                        imageMime
+                    });
+                } else {
+                    const options = [];
+                    for (let j = 0; j < 4; j++) {
+                        const opt = document.getElementById(`ocr_q_opt_${i}_${j}`).value.trim();
+                        if (opt) options.push(opt);
+                    }
+                    if (options.length < 2) {
+                        alert(`السؤال ${i + 1} يحتاج إلى خيارين على الأقل.`);
+                        submitBtn.classList.remove('loading');
+                        submitBtn.textContent = '✅ نشر الامتحان';
+                        return;
+                    }
+                    const correct = parseInt(document.getElementById(`ocr_q_correct_${i}`).value || 0);
+                    questions.push({
+                        text,
+                        options,
+                        correct,
+                        questionType: 'multiple_choice',
+                        imageData,
+                        imageMime
+                    });
+                }
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('groupId', groupId);
+                formData.append('groupSlug', groupSlug);
+                formData.append('questionType', questionType);
+                formData.append('examType', 'ocr');
+                
+                // إضافة الصور كملفات
+                for (const img of uploadedImages) {
+                    formData.append('images', img.file);
+                }
+                
+                formData.append('questions', JSON.stringify(questions));
+
+                const response = await fetch(`${API_URL}/api/exams/ocr`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(`✅ تم إنشاء الامتحان من ${ocrResults.length} صورة ونشره بنجاح!`);
+                    window.location.href = '/dashboard';
+                } else {
+                    alert('❌ حدث خطأ في إنشاء الامتحان: ' + (result.error || ''));
+                }
+            } catch (error) {
+                alert('❌ حدث خطأ في إنشاء الامتحان.');
+                console.error(error);
+            } finally {
+                submitBtn.classList.remove('loading');
+                submitBtn.textContent = '✅ نشر الامتحان';
+            }
+        }
+
+        loadGroups();
+    </script>
+</body>
+</html>
