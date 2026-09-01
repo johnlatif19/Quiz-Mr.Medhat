@@ -30,7 +30,6 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            flex-wrap: wrap;
         }
         .header .user-info span { color: #4a5a6a; font-weight: 500; }
         .btn-logout {
@@ -89,45 +88,6 @@
             flex-wrap: wrap;
             gap: 10px;
         }
-
-        /* ===== زر إنشاء الامتحان ===== */
-        .create-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        .create-btn {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 15px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.2s;
-            color: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        .create-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-        }
-        .create-btn.manual {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-        }
-        .create-btn.images {
-            background: linear-gradient(135deg, #2980b9, #3498db);
-        }
-        .create-btn.ocr {
-            background: linear-gradient(135deg, #8e44ad, #9b59b6);
-        }
-        .create-btn .icon { font-size: 22px; }
-        .create-btn .label { font-size: 14px; }
-        .create-btn .sub-label { font-size: 11px; opacity: 0.8; font-weight: 400; display: block; }
 
         table {
             width: 100%;
@@ -240,6 +200,23 @@
             font-weight: 600;
             color: #2c6f9c;
         }
+        .question-item .options-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        .question-item .options-list .opt {
+            background: white;
+            padding: 2px 10px;
+            border-radius: 4px;
+            border: 1px solid #dce4ec;
+            font-size: 13px;
+        }
+        .question-item .options-list .opt.correct {
+            background: #d4edda;
+            border-color: #27ae60;
+        }
 
         .submission-item {
             border: 1px solid #e8edf3;
@@ -283,32 +260,37 @@
             font-weight: 600;
         }
 
-        .exam-type-badge {
+        .badge {
             display: inline-block;
-            padding: 2px 12px;
+            padding: 2px 10px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
         }
-        .exam-type-badge.manual { background: #d4edda; color: #155724; }
-        .exam-type-badge.image { background: #cce5ff; color: #004085; }
-        .exam-type-badge.ocr { background: #e8d5f5; color: #6c3483; }
+        .badge-correct { background: #d4edda; color: #155724; }
+        .badge-wrong { background: #f8d7da; color: #721c24; }
+        .badge-unanswered { background: #fff3cd; color: #856404; }
 
-        .cheat-notification {
-            background: #fff3cd;
-            border: 1px solid #f39c12;
-            padding: 8px 15px;
-            border-radius: 6px;
-            margin-bottom: 8px;
+        .answer-detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid #e8edf3;
+            font-size: 14px;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .answer-detail-item .q-text { flex: 1; margin-right: 10px; }
+        .answer-detail-item .user-ans { font-weight: 600; margin: 0 10px; }
+        .answer-detail-item .correct-ans { color: #27ae60; font-weight: 600; }
+
+        .group-chip {
+            display: inline-block;
+            background: #e8edf3;
+            padding: 4px 12px;
+            border-radius: 20px;
             font-size: 13px;
-        }
-        .cheat-notification .cheat-time {
-            color: #7f8c8d;
-            font-size: 12px;
-            margin-left: 10px;
-        }
-        .cheat-notification .cheat-actions {
-            margin-top: 5px;
+            margin: 3px;
         }
 
         .full-exam-question {
@@ -347,29 +329,22 @@
             border-color: #27ae60;
             border-width: 3px;
         }
-        .exam-question-image {
-            max-width: 300px;
-            max-height: 200px;
-            border-radius: 8px;
-            border: 1px solid #dce4ec;
-            margin: 8px 0;
-        }
 
-        .needs-review {
-            background: #f39c12;
-            color: white;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        .essay-badge {
+        .cheat-notification {
             background: #fff3cd;
-            color: #856404;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
+            border: 1px solid #f39c12;
+            padding: 8px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .cheat-notification .cheat-time {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .cheat-notification .cheat-actions {
+            margin-top: 5px;
         }
 
         @media (max-width: 768px) {
@@ -378,8 +353,6 @@
             .tabs { justify-content: center; }
             table { font-size: 12px; }
             table th, table td { padding: 6px; }
-            .create-buttons { flex-direction: column; }
-            .create-btn { justify-content: center; }
         }
     </style>
 </head>
@@ -392,25 +365,6 @@
                 <span id="userDisplay">مرحباً، Mr. Medhat</span>
                 <span id="cheatCount" style="background:#e74c3c;color:white;padding:2px 12px;border-radius:20px;font-size:13px;">🚨 0</span>
                 <button class="btn-logout" onclick="logout()">خروج</button>
-            </div>
-        </div>
-
-        <!-- 3 Ways to Create Exam -->
-        <div class="card">
-            <div style="font-size:16px;font-weight:600;color:#1a2a3a;margin-bottom:15px;">📝 إنشاء امتحان جديد</div>
-            <div class="create-buttons">
-                <a href="/upload-exam" class="create-btn manual">
-                    <span class="icon">✏️</span>
-                    <span class="label">يدوي <span class="sub-label">كتابة الأسئلة</span></span>
-                </a>
-                <a href="/upload-image-exam" class="create-btn images">
-                    <span class="icon">🖼️</span>
-                    <span class="label">صور <span class="sub-label">صور + أسئلة</span></span>
-                </a>
-                <a href="/upload-ocr-exam" class="create-btn ocr">
-                    <span class="icon">🤖</span>
-                    <span class="label">تحويل صور إلى أسئلة <span class="sub-label">OCR ذكي</span></span>
-                </a>
             </div>
         </div>
 
@@ -440,6 +394,7 @@
             <div class="card">
                 <div class="card-title">
                     <span>الامتحانات</span>
+                    <button class="btn btn-success" onclick="showCreateExam()">+ إنشاء امتحان جديد</button>
                 </div>
                 <div id="examsContainer">
                     <div class="empty-state">جاري تحميل الامتحانات...</div>
@@ -495,6 +450,33 @@
         </div>
     </div>
 
+    <!-- Modal: Create Exam -->
+    <div class="modal" id="createExamModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>إنشاء امتحان جديد</h2>
+                <button class="modal-close" onclick="closeModal('createExamModal')">×</button>
+            </div>
+            <form id="createExamForm" onsubmit="createExam(event)">
+                <div class="form-group">
+                    <label>اختر المجموعة</label>
+                    <select id="examGroupSelect" required>
+                        <option value="">-- اختر مجموعة --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>عدد الأسئلة</label>
+                    <input type="number" id="examQuestionCount" value="5" min="1" max="50">
+                </div>
+                <div id="examQuestionsContainer"></div>
+                <div style="display:flex;gap:10px;margin-top:15px;">
+                    <button type="submit" class="btn btn-success">حفظ ونشر</button>
+                    <button type="button" class="btn btn-warning" onclick="closeModal('createExamModal')">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: Edit Exam -->
     <div class="modal" id="editExamModal">
         <div class="modal-content" style="max-width: 900px;">
@@ -519,7 +501,7 @@
         </div>
     </div>
 
-    <!-- Modal: Student Answers -->
+    <!-- Modal: Student Answers (Full Exam View) -->
     <div class="modal" id="answersModal">
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
@@ -642,6 +624,7 @@
             }
         }
 
+        // تحديث محاولات الغش كل 5 ثواني
         setInterval(() => {
             if (document.getElementById('cheatsTab').classList.contains('active')) {
                 loadCheats();
@@ -744,25 +727,19 @@
                 if (response.status === 401 || response.status === 403) { logout(); return; }
                 const data = await response.json();
                 if (data.length === 0) {
-                    container.innerHTML = `<div class="empty-state">
-                        لا توجد امتحانات. استخدم الأزرار أعلاه لإنشاء امتحان جديد.
-                    </div>`;
+                    container.innerHTML = '<div class="empty-state">لا توجد امتحانات. أنشئ امتحاناً جديداً.</div>';
                     return;
                 }
                 let html = `<table>
-                    <thead><tr><th>#</th><th>المجموعة</th><th>عدد الأسئلة</th><th>النوع</th><th>الحالة</th><th>الرابط</th><th>الإجراءات</th></tr></thead>
+                    <thead><tr><th>#</th><th>المجموعة</th><th>عدد الأسئلة</th><th>الحالة</th><th>الرابط</th><th>الإجراءات</th></tr></thead>
                     <tbody>`;
                 data.forEach((exam, i) => {
                     const link = `${window.location.origin}/${exam.groupSlug}`;
                     const status = exam.isPublished ? 'منشور' : 'غير منشور';
-                    const examType = exam.examType || 'manual';
-                    const typeLabel = examType === 'manual' ? 'يدوي' : examType === 'image' ? 'صور' : 'OCR';
-                    const typeClass = examType === 'manual' ? 'manual' : examType === 'image' ? 'image' : 'ocr';
                     html += `<tr>
                         <td>${i + 1}</td>
                         <td>${exam.groupName || exam.groupSlug}</td>
                         <td>${exam.questionsCount || 0}</td>
-                        <td><span class="exam-type-badge ${typeClass}">${typeLabel}</span></td>
                         <td>${status}</td>
                         <td><a href="${link}" target="_blank">/${exam.groupSlug}</a></td>
                         <td>
@@ -788,7 +765,7 @@
                 if (response.status === 401 || response.status === 403) { logout(); return; }
                 const data = await response.json();
                 
-                ['editExamGroupSelect'].forEach(id => {
+                ['examGroupSelect', 'editExamGroupSelect'].forEach(id => {
                     const select = document.getElementById(id);
                     if (select) {
                         select.innerHTML = '<option value="">-- اختر مجموعة --</option>';
@@ -798,6 +775,113 @@
                     }
                 });
             } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function showCreateExam() {
+            populateGroupSelects();
+            document.getElementById('examQuestionsContainer').innerHTML = '';
+            document.getElementById('examQuestionCount').value = 5;
+            updateQuestionFields();
+            openModal('createExamModal');
+        }
+
+        function updateQuestionFields() {
+            const count = parseInt(document.getElementById('examQuestionCount').value) || 5;
+            const container = document.getElementById('examQuestionsContainer');
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div class="question-item">
+                        <div class="q-number">السؤال ${i + 1}</div>
+                        <div class="form-group" style="margin-top:5px;">
+                            <input type="text" id="q_text_${i}" placeholder="نص السؤال" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <div class="form-group" style="flex:1;min-width:100px;">
+                                <label style="font-size:12px;">الاختيار A</label>
+                                <input type="text" id="q_opt_${i}_0" placeholder="A" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                            <div class="form-group" style="flex:1;min-width:100px;">
+                                <label style="font-size:12px;">الاختيار B</label>
+                                <input type="text" id="q_opt_${i}_1" placeholder="B" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                            <div class="form-group" style="flex:1;min-width:100px;">
+                                <label style="font-size:12px;">الاختيار C</label>
+                                <input type="text" id="q_opt_${i}_2" placeholder="C" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                            <div class="form-group" style="flex:1;min-width:100px;">
+                                <label style="font-size:12px;">الاختيار D</label>
+                                <input type="text" id="q_opt_${i}_3" placeholder="D" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top:5px;">
+                            <label style="font-size:12px;">الإجابة الصحيحة</label>
+                            <select id="q_correct_${i}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                <option value="0">A</option>
+                                <option value="1">B</option>
+                                <option value="2">C</option>
+                                <option value="3">D</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        document.getElementById('examQuestionCount').addEventListener('change', updateQuestionFields);
+
+        async function createExam(e) {
+            e.preventDefault();
+            const groupSelect = document.getElementById('examGroupSelect');
+            const groupId = groupSelect.value;
+            const groupSlug = groupSelect.options[groupSelect.selectedIndex]?.dataset?.slug;
+            const count = parseInt(document.getElementById('examQuestionCount').value);
+
+            if (!groupId) { alert('الرجاء اختيار مجموعة.'); return; }
+
+            const questions = [];
+            let valid = true;
+            for (let i = 0; i < count; i++) {
+                const text = document.getElementById(`q_text_${i}`).value.trim();
+                const options = [];
+                for (let j = 0; j < 4; j++) {
+                    const opt = document.getElementById(`q_opt_${i}_${j}`).value.trim();
+                    if (opt) options.push(opt);
+                }
+                const correct = parseInt(document.getElementById(`q_correct_${i}`).value);
+
+                if (!text) {
+                    alert(`الرجاء إدخال نص السؤال ${i + 1}`);
+                    valid = false;
+                    return;
+                }
+                if (options.length < 2) {
+                    alert(`السؤال ${i + 1} يحتاج إلى خيارين على الأقل.`);
+                    valid = false;
+                    return;
+                }
+                questions.push({ text, options, correct });
+            }
+
+            if (!valid) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/exams`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ groupId, groupSlug, questions })
+                });
+                if (response.status === 401 || response.status === 403) { logout(); return; }
+                closeModal('createExamModal');
+                loadExams();
+            } catch (error) {
+                alert('حدث خطأ في إنشاء الامتحان.');
                 console.error(error);
             }
         }
@@ -835,7 +919,6 @@
                 let html = `<div style="margin-bottom:15px;padding:10px;background:#f7f9fc;border-radius:8px;">
                     <strong>المجموعة الحالية:</strong> ${exam.groupName || exam.groupSlug}
                     <span style="margin-left:20px;"><strong>عدد الأسئلة:</strong> ${questions.length}</span>
-                    <span style="margin-left:20px;"><strong>النوع:</strong> ${exam.examType === 'image' ? 'صور' : exam.examType === 'ocr' ? 'OCR' : 'يدوي'}</span>
                 </div>`;
 
                 if (questions.length === 0) {
@@ -843,29 +926,20 @@
                 } else {
                     const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
                     questions.forEach((q, idx) => {
-                        const isEssay = q.questionType === 'essay';
-                        const hasImage = q.imageData && q.imageData.length > 0;
                         html += `
-                            <div class="question-item" style="border:2px solid ${isEssay ? '#f39c12' : hasImage ? '#2980b9' : '#2c6f9c'};">
-                                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px;">
-                                    <div class="q-number">السؤال ${idx + 1} ${isEssay ? '<span class="essay-badge">📝 مقالي</span>' : ''} ${hasImage ? '<span style="background:#cce5ff;color:#004085;padding:2px 10px;border-radius:20px;font-size:11px;">🖼️ صورة</span>' : ''}</div>
+                            <div class="question-item" style="border:2px solid #f39c12;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <div class="q-number">السؤال ${idx + 1}</div>
                                     <button type="button" class="btn btn-danger btn-sm" onclick="deleteQuestionFromExam('${examId}', '${q.id}')">حذف هذا السؤال</button>
                                 </div>
-                                ${hasImage ? `<div><img src="${q.imageData}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #dce4ec;margin:5px 0;"></div>` : ''}
                                 <div class="form-group" style="margin-top:5px;">
-                                    <input type="text" id="edit_q_text_${idx}" value="${q.text ? q.text.replace(/"/g, '&quot;') : ''}" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
+                                    <input type="text" id="edit_q_text_${idx}" value="${q.text.replace(/"/g, '&quot;')}" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
                                 </div>
-                                ${isEssay ? `
-                                    <div class="form-group">
-                                        <label style="font-size:12px;">إجابة نموذجية</label>
-                                        <textarea id="edit_q_essay_${idx}" rows="2" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">${q.essayAnswer || ''}</textarea>
-                                    </div>
-                                ` : (q.options && q.options.length > 0 ? `
                                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
                                     ${q.options.map((opt, oi) => `
                                         <div class="form-group" style="flex:1;min-width:80px;">
                                             <label style="font-size:12px;">${letters[oi]}</label>
-                                            <input type="text" id="edit_q_opt_${idx}_${oi}" value="${opt ? opt.replace(/"/g, '&quot;') : ''}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                            <input type="text" id="edit_q_opt_${idx}_${oi}" value="${opt.replace(/"/g, '&quot;')}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
                                         </div>
                                     `).join('')}
                                 </div>
@@ -877,7 +951,6 @@
                                         `).join('')}
                                     </select>
                                 </div>
-                                ` : '')}
                             </div>
                         `;
                     });
@@ -892,7 +965,6 @@
                 window._editExamQuestions = questions;
                 window._editExamId = examId;
                 window._editExamGroupId = exam.groupId;
-                window._editExamType = exam.examType || 'manual';
                 openModal('editExamModal');
             } catch (error) {
                 alert('حدث خطأ في تحميل الامتحان للتعديل.');
@@ -906,24 +978,15 @@
             const container = document.getElementById('newQuestionContainer');
             const idx = window._editExamQuestions ? window._editExamQuestions.length + newQuestionCounter : newQuestionCounter;
             const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-            const isEssay = window._editExamType === 'image' || window._editExamType === 'ocr';
-            
             container.innerHTML += `
                 <div class="question-item" style="border:2px solid #27ae60;margin-top:10px;" id="new_q_${idx}">
-                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div class="q-number">سؤال جديد ${idx + 1}</div>
                         <button type="button" class="btn btn-danger btn-sm" onclick="document.getElementById('new_q_${idx}').remove()">إزالة</button>
                     </div>
                     <div class="form-group" style="margin-top:5px;">
                         <input type="text" id="new_q_text_${idx}" placeholder="نص السؤال" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
                     </div>
-                    ${isEssay ? `
-                        <div class="form-group">
-                            <label style="font-size:12px;">إجابة نموذجية</label>
-                            <textarea id="new_q_essay_${idx}" rows="2" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;"></textarea>
-                        </div>
-                        <input type="hidden" id="new_q_type_${idx}" value="essay">
-                    ` : `
                     <div style="display:flex;gap:10px;flex-wrap:wrap;">
                         ${['A','B','C','D'].map((letter, oi) => `
                             <div class="form-group" style="flex:1;min-width:80px;">
@@ -941,8 +1004,6 @@
                             <option value="3">D</option>
                         </select>
                     </div>
-                    <input type="hidden" id="new_q_type_${idx}" value="multiple_choice">
-                    `}
                 </div>
             `;
             newQuestionCounter++;
@@ -971,41 +1032,15 @@
             
             const existingQuestions = window._editExamQuestions || [];
             for (let i = 0; i < existingQuestions.length; i++) {
-                const text = document.getElementById(`edit_q_text_${i}`)?.value?.trim() || '';
-                const isEssay = existingQuestions[i].questionType === 'essay';
-                
-                if (isEssay) {
-                    const essayAnswer = document.getElementById(`edit_q_essay_${i}`)?.value?.trim() || '';
-                    if (text) {
-                        questions.push({ 
-                            id: existingQuestions[i].id, 
-                            text, 
-                            options: [], 
-                            correct: null, 
-                            questionType: 'essay',
-                            essayAnswer: essayAnswer,
-                            imageData: existingQuestions[i].imageData || '',
-                            imageMime: existingQuestions[i].imageMime || ''
-                        });
-                    }
-                } else {
-                    const options = [];
-                    for (let j = 0; j < (existingQuestions[i].options?.length || 4); j++) {
-                        const opt = document.getElementById(`edit_q_opt_${i}_${j}`)?.value?.trim() || '';
-                        if (opt) options.push(opt);
-                    }
-                    const correct = parseInt(document.getElementById(`edit_q_correct_${i}`)?.value || 0);
-                    if (text && options.length >= 2) {
-                        questions.push({ 
-                            id: existingQuestions[i].id, 
-                            text, 
-                            options, 
-                            correct, 
-                            questionType: 'multiple_choice',
-                            imageData: existingQuestions[i].imageData || '',
-                            imageMime: existingQuestions[i].imageMime || ''
-                        });
-                    }
+                const text = document.getElementById(`edit_q_text_${i}`).value.trim();
+                const options = [];
+                for (let j = 0; j < existingQuestions[i].options.length; j++) {
+                    const opt = document.getElementById(`edit_q_opt_${i}_${j}`).value.trim();
+                    if (opt) options.push(opt);
+                }
+                const correct = parseInt(document.getElementById(`edit_q_correct_${i}`).value);
+                if (text && options.length >= 2) {
+                    questions.push({ id: existingQuestions[i].id, text, options, correct });
                 }
             }
 
@@ -1013,28 +1048,19 @@
                 const textEl = document.getElementById(`new_q_text_${i}`);
                 if (!textEl) continue;
                 const text = textEl.value.trim();
-                const qType = document.getElementById(`new_q_type_${i}`)?.value || 'multiple_choice';
-                
-                if (qType === 'essay') {
-                    const essayAnswer = document.getElementById(`new_q_essay_${i}`)?.value?.trim() || '';
-                    if (text) {
-                        questions.push({ text, options: [], correct: null, questionType: 'essay', essayAnswer, imageData: '', imageMime: '' });
-                    }
-                } else {
-                    const options = [];
-                    for (let j = 0; j < 4; j++) {
-                        const opt = document.getElementById(`new_q_opt_${i}_${j}`);
-                        if (opt && opt.value.trim()) options.push(opt.value.trim());
-                    }
-                    const correct = parseInt(document.getElementById(`new_q_correct_${i}`)?.value || 0);
-                    if (text && options.length >= 2) {
-                        questions.push({ text, options, correct, questionType: 'multiple_choice', imageData: '', imageMime: '' });
-                    }
+                const options = [];
+                for (let j = 0; j < 4; j++) {
+                    const opt = document.getElementById(`new_q_opt_${i}_${j}`);
+                    if (opt && opt.value.trim()) options.push(opt.value.trim());
+                }
+                const correct = parseInt(document.getElementById(`new_q_correct_${i}`).value);
+                if (text && options.length >= 2) {
+                    questions.push({ text, options, correct });
                 }
             }
 
             if (questions.length === 0) {
-                alert('لا توجد أسئلة صالحة.');
+                alert('لا توجد أسئلة صالحة. كل سؤال يحتاج إلى نص وخيارين على الأقل.');
                 return;
             }
 
@@ -1069,9 +1095,9 @@
                 closeModal('editExamModal');
                 newQuestionCounter = 0;
                 loadExams();
-                alert('✅ تم تحديث الامتحان بنجاح!');
+                alert('تم تحديث الامتحان بنجاح!');
             } catch (error) {
-                alert('❌ حدث خطأ في تحديث الامتحان.');
+                alert('حدث خطأ في تحديث الامتحان.');
                 console.error(error);
             }
         }
@@ -1147,7 +1173,6 @@
                 let html = '';
                 data.forEach((sub) => {
                     const hasCheats = sub.cheatLog && sub.cheatLog.length > 0;
-                    const needsReview = sub.needsReview || false;
                     html += `
                         <div class="submission-item">
                             <div class="info">
@@ -1156,7 +1181,6 @@
                                 <span class="score">${sub.correct || 0} / ${sub.total || 0} (${sub.score || 0}%)</span>
                                 <span style="font-size: 13px; color: #7f8c8d;">${new Date(sub.timestamp).toLocaleString('ar-EG')}</span>
                                 ${hasCheats ? '<span class="cheat-badge">⚠️ غش</span>' : ''}
-                                ${needsReview ? '<span class="needs-review">📝 بحاجة مراجعة</span>' : ''}
                             </div>
                             <div class="actions">
                                 <button class="btn btn-primary btn-sm" onclick="showStudentAnswers('${sub.id}')">📖 عرض الامتحان كامل</button>
@@ -1166,11 +1190,6 @@
                                 <div class="cheat-alert">
                                     ⚠️ تم تسجيل ${sub.cheatLog.length} محاولة غش:
                                     ${sub.cheatLog.map(c => `${c.eventType} (${new Date(c.timestamp).toLocaleTimeString()})`).join(' | ')}
-                                </div>
-                            ` : ''}
-                            ${needsReview ? `
-                                <div style="background:#fff3cd;padding:8px 15px;border-radius:6px;margin-top:5px;border:1px solid #f39c12;">
-                                    📝 يحتوي هذا الامتحان على أسئلة مقالية تحتاج إلى تقييم يدوي.
                                 </div>
                             ` : ''}
                         </div>
@@ -1202,26 +1221,21 @@
                         <strong>📚 المجموعة:</strong> ${submission.groupSlug}<br>
                         <strong>📊 النتيجة:</strong> ${submission.correct} / ${submission.total} (${submission.score}%)
                         ${submission.cheatLog && submission.cheatLog.length > 0 ? `<br><strong>⚠️ محاولات غش:</strong> ${submission.cheatLog.length}` : ''}
-                        ${submission.needsReview ? `<br><strong>📝 بحاجة مراجعة:</strong> يحتوي على أسئلة مقالية` : ''}
                     </div>
                     <hr style="margin:10px 0 20px 0;">
                 `;
 
                 if (submission.results && submission.results.length > 0) {
                     submission.results.forEach((r, i) => {
-                        const isEssay = r.isEssay || false;
                         const userAns = r.userAnswer !== null && r.userAnswer !== undefined ? r.userAnswer : -1;
                         const correctAns = r.correctAnswer;
-                        const userLetter = userAns >= 0 && !isEssay ? letters[userAns] : (isEssay ? (r.userAnswer || '') : '—');
-                        const correctLetter = correctAns >= 0 && !isEssay ? letters[correctAns] : (isEssay ? (r.correctAnswer || '') : '—');
+                        const userLetter = userAns >= 0 ? letters[userAns] : '—';
+                        const correctLetter = correctAns >= 0 ? letters[correctAns] : '—';
                         const isCorrect = r.isCorrect === true;
-                        const hasImage = r.imageData && r.imageData.length > 0;
                         
                         html += `
-                            <div class="full-exam-question" style="${isEssay ? 'border-left:4px solid #f39c12;' : isCorrect ? 'border-left:4px solid #27ae60;' : 'border-left:4px solid #e74c3c;'}">
-                                ${hasImage ? `<div><img src="${r.imageData}" class="exam-question-image"></div>` : ''}
-                                <div class="q-text">${i+1}. ${r.questionText || 'سؤال'} ${isEssay ? '<span class="essay-badge">📝 مقالي</span>' : ''}</div>
-                                ${!isEssay && r.options ? `
+                            <div class="full-exam-question" style="${isCorrect ? 'border-left:4px solid #27ae60;' : 'border-left:4px solid #e74c3c;'}">
+                                <div class="q-text">${i+1}. ${r.questionText || 'سؤال'}</div>
                                 <div class="options-show">
                                     ${r.options.map((opt, oi) => {
                                         let cls = 'opt-item';
@@ -1233,17 +1247,8 @@
                                         return `<span class="${cls}">${letters[oi]}. ${opt}</span>`;
                                     }).join('')}
                                 </div>
-                                ` : ''}
                                 <div style="margin-top:8px;font-size:14px;">
-                                    ${isEssay ? `
-                                        <div style="background:#f7f9fc;padding:10px;border-radius:6px;border:1px solid #dce4ec;">
-                                            <strong>✍️ إجابة الطالب:</strong><br>
-                                            ${userAns !== -1 ? userAns : 'لم يجب'}
-                                        </div>
-                                        <div style="margin-top:5px;color:#f39c12;">
-                                            ⚠️ هذا سؤال مقالي يحتاج إلى تقييم يدوي من قبل المدرس.
-                                        </div>
-                                    ` : isCorrect 
+                                    ${isCorrect 
                                         ? '<span style="color:#27ae60;">✅ إجابة صحيحة</span>' 
                                         : userAns >= 0 
                                             ? `<span style="color:#e74c3c;">❌ إجابة خاطئة (إجابتك: ${userLetter} | الصحيح: ${correctLetter})</span>`
