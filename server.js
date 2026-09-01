@@ -39,6 +39,11 @@ app.get('/upload-image-exam', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'upload-image-exam.html'));
 });
 
+// ====== صفحة تحويل الصور إلى أسئلة (OCR) ======
+app.get('/upload-ocr-exam', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'upload-ocr-exam.html'));
+});
+
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_123456789';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
@@ -681,7 +686,7 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
             groupSlug,
             questionsCount: questions.length,
             isPublished: true,
-            examType: 'manual', // يدوي
+            examType: 'manual',
             createdAt: new Date().toISOString()
         };
 
@@ -691,7 +696,7 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
                 ...q,
                 id: idx + 1,
                 examId: savedExam.id,
-                questionType: q.questionType || 'multiple_choice' // multiple_choice أو essay
+                questionType: q.questionType || 'multiple_choice'
             }));
             await saveQuestions(examQuestions);
             res.json(savedExam);
@@ -703,10 +708,10 @@ app.post('/api/exams', authenticateToken, async (req, res) => {
     }
 });
 
-// ====== إنشاء امتحان من الصور ======
+// ====== إنشاء امتحان من الصور (تظهر الصور مع الأسئلة) ======
 app.post('/api/exams/image', authenticateToken, upload.array('images', 20), async (req, res) => {
     try {
-        const { groupId, groupSlug, questionType, questions } = req.body;
+        const { groupId, groupSlug, questionType, questions, examType } = req.body;
         const files = req.files;
 
         if (!groupId || !groupSlug) {
@@ -715,7 +720,6 @@ app.post('/api/exams/image', authenticateToken, upload.array('images', 20), asyn
 
         let parsedQuestions = [];
         
-        // إذا كان هناك أسئلة مرسلة من الواجهة (بعد المعالجة)
         if (questions) {
             try {
                 parsedQuestions = JSON.parse(questions);
@@ -724,7 +728,6 @@ app.post('/api/exams/image', authenticateToken, upload.array('images', 20), asyn
             }
         }
 
-        // إذا كانت هناك صور مرفوعة
         if (files && files.length > 0) {
             const imageData = files.map(file => ({
                 filename: file.originalname,
@@ -734,7 +737,6 @@ app.post('/api/exams/image', authenticateToken, upload.array('images', 20), asyn
                 createdAt: new Date().toISOString()
             }));
 
-            // حفظ الصور
             for (const img of imageData) {
                 await saveExamImage({
                     groupId,
@@ -743,11 +745,10 @@ app.post('/api/exams/image', authenticateToken, upload.array('images', 20), asyn
                 });
             }
 
-            // إذا لم تكن هناك أسئلة محللة، نقوم بإنشاء أسئلة افتراضية من الصور
             if (parsedQuestions.length === 0) {
                 parsedQuestions = imageData.map((img, index) => ({
-                    text: `سؤال من الصورة ${index + 1}: ${img.filename}`,
-                    options: ['اختيار 1', 'اختيار 2', 'اختيار 3', 'اختيار 4'],
+                    text: `سؤال ${index + 1}`,
+                    options: ['الخيار A', 'الخيار B', 'الخيار C', 'الخيار D'],
                     correct: 0,
                     questionType: questionType || 'multiple_choice',
                     imageData: img.data,
@@ -765,7 +766,7 @@ app.post('/api/exams/image', authenticateToken, upload.array('images', 20), asyn
             groupSlug,
             questionsCount: parsedQuestions.length,
             isPublished: true,
-            examType: 'image',
+            examType: examType || 'image',
             questionType: questionType || 'multiple_choice',
             createdAt: new Date().toISOString()
         };
@@ -785,6 +786,70 @@ app.post('/api/exams/image', authenticateToken, upload.array('images', 20), asyn
         }
     } catch (error) {
         console.error('Error creating image exam:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ====== إنشاء امتحان من صور مع OCR (تحويل إلى أسئلة نصية) ======
+app.post('/api/exams/ocr', authenticateToken, upload.array('images', 20), async (req, res) => {
+    try {
+        const { groupId, groupSlug, questionType, questions, examType } = req.body;
+        const files = req.files;
+
+        if (!groupId || !groupSlug) {
+            return res.status(400).json({ error: 'Group ID and slug required' });
+        }
+
+        let parsedQuestions = [];
+        if (questions) {
+            try {
+                parsedQuestions = JSON.parse(questions);
+            } catch (e) {
+                parsedQuestions = [];
+            }
+        }
+
+        // إذا كانت هناك صور مرفوعة ولم تكن هناك أسئلة محللة
+        if (files && files.length > 0 && parsedQuestions.length === 0) {
+            parsedQuestions = files.map((file, index) => ({
+                text: `سؤال من الصورة ${index + 1}: ${file.originalname}`,
+                options: ['الخيار A', 'الخيار B', 'الخيار C', 'الخيار D'],
+                correct: 0,
+                questionType: questionType || 'multiple_choice',
+                imageData: file.buffer.toString('base64'),
+                imageMime: file.mimetype
+            }));
+        }
+
+        if (parsedQuestions.length === 0) {
+            return res.status(400).json({ error: 'No questions or images provided' });
+        }
+
+        const exam = {
+            groupId,
+            groupSlug,
+            questionsCount: parsedQuestions.length,
+            isPublished: true,
+            examType: examType || 'ocr',
+            questionType: questionType || 'multiple_choice',
+            createdAt: new Date().toISOString()
+        };
+
+        const savedExam = await saveExam(exam);
+        if (savedExam) {
+            const examQuestions = parsedQuestions.map((q, idx) => ({
+                ...q,
+                id: idx + 1,
+                examId: savedExam.id,
+                questionType: q.questionType || questionType || 'multiple_choice'
+            }));
+            await saveQuestions(examQuestions);
+            res.json({ success: true, exam: savedExam, questionsCount: examQuestions.length });
+        } else {
+            res.status(500).json({ error: 'Failed to save exam' });
+        }
+    } catch (error) {
+        console.error('Error creating OCR exam:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -949,10 +1014,12 @@ app.post('/api/submit-exam', async (req, res) => {
                     questionText: q.text,
                     options: q.options || [],
                     userAnswer: userAnswer,
-                    correctAnswer: null, // المقالية ليس لها إجابة صحيحة محددة
-                    isCorrect: null, // سيتم تقييمها يدوياً
+                    correctAnswer: null,
+                    isCorrect: null,
                     isEssay: true,
-                    needsReview: true
+                    needsReview: true,
+                    imageData: q.imageData || null,
+                    imageMime: q.imageMime || null
                 });
             } else {
                 const isCorrect = userAnswer === q.correct;
@@ -964,7 +1031,9 @@ app.post('/api/submit-exam', async (req, res) => {
                     userAnswer: userAnswer,
                     correctAnswer: q.correct,
                     isCorrect,
-                    isEssay: false
+                    isEssay: false,
+                    imageData: q.imageData || null,
+                    imageMime: q.imageMime || null
                 });
             }
         });
@@ -1108,9 +1177,14 @@ app.get('/upload-exam', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'upload-exam.html'));
 });
 
-// Upload image exam page
+// Upload image exam page (صور تظهر كصور)
 app.get('/upload-image-exam', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'upload-image-exam.html'));
+});
+
+// Upload OCR exam page (تحويل الصور إلى أسئلة)
+app.get('/upload-ocr-exam', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'upload-ocr-exam.html'));
 });
 
 // Home page - shows 404
@@ -1122,7 +1196,7 @@ app.get('/', (req, res) => {
 app.get('/:groupSlug', (req, res) => {
     const slug = req.params.groupSlug;
     
-    const reservedPaths = ['login', 'dashboard', 'api', 'favicon.ico', 'robots.txt', 'upload-exam', 'upload-image-exam'];
+    const reservedPaths = ['login', 'dashboard', 'api', 'favicon.ico', 'robots.txt', 'upload-exam', 'upload-image-exam', 'upload-ocr-exam'];
     if (reservedPaths.includes(slug) || slug.includes('.')) {
         return res.sendFile(path.join(__dirname, 'public', 'index.html'));
     }
