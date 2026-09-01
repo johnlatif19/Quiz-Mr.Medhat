@@ -284,131 +284,6 @@
         .answer-detail-item .user-ans { font-weight: 600; margin: 0 10px; }
         .answer-detail-item .correct-ans { color: #27ae60; font-weight: 600; }
 
-        .exam-type-selector {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-        .exam-type-selector label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 10px 20px;
-            border: 2px solid #dce4ec;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-        .exam-type-selector label.active {
-            background: #1a3a5c;
-            color: white;
-            border-color: #1a3a5c;
-        }
-        .exam-type-selector input[type="radio"] {
-            margin: 0;
-        }
-
-        .image-upload-section {
-            margin-bottom: 15px;
-        }
-        .images-preview {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .image-preview-item {
-            position: relative;
-            display: inline-block;
-        }
-        .image-preview-item img {
-            max-width: 80px;
-            max-height: 80px;
-            object-fit: cover;
-            border: 2px solid #dce4ec;
-            border-radius: 6px;
-        }
-        .image-preview-item .remove-img {
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
-            cursor: pointer;
-        }
-
-        .answer-mode-selector {
-            margin-bottom: 10px;
-        }
-        .answer-mode-selector label {
-            display: inline-block;
-            padding: 5px 15px;
-            border: 2px solid #dce4ec;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            margin-left: 5px;
-            transition: all 0.2s;
-        }
-        .answer-mode-selector label.active {
-            background: #2c6f9c;
-            color: white;
-            border-color: #2c6f9c;
-        }
-        .answer-mode-selector input[type="radio"] {
-            margin: 0;
-        }
-
-        .mc-section {
-            margin-top: 10px;
-        }
-        .essay-section {
-            margin-top: 10px;
-        }
-        .essay-section textarea {
-            width: 100%;
-            padding: 8px 12px;
-            border: 2px solid #dce4ec;
-            border-radius: 6px;
-            font-size: 14px;
-            min-height: 80px;
-            resize: vertical;
-        }
-        .essay-section textarea:focus {
-            outline: none;
-            border-color: #2c6f9c;
-        }
-
-        .question-image-preview {
-            max-width: 200px;
-            max-height: 150px;
-            object-fit: contain;
-            border: 1px solid #e8edf3;
-            border-radius: 4px;
-            margin: 5px 0;
-        }
-
-        .exam-type-badge {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-right: 5px;
-        }
-        .badge-manual { background: #e3f2fd; color: #1565c0; }
-        .badge-image { background: #fce4ec; color: #c2185b; }
-        .badge-multiple { background: #e8f5e9; color: #2e7d32; }
-        .badge-essay { background: #fff3e0; color: #e65100; }
-
         .group-chip {
             display: inline-block;
             background: #e8edf3;
@@ -487,7 +362,7 @@
         <div class="header">
             <h1>Quiz <span>Mr. Medhat</span> - لوحة التحكم</h1>
             <div class="user-info">
-                <span id="userDisplay">مرحباً، Mr.Medhat</span>
+                <span id="userDisplay">مرحباً، Mr. Medhat</span>
                 <span id="cheatCount" style="background:#e74c3c;color:white;padding:2px 12px;border-radius:20px;font-size:13px;">🚨 0</span>
                 <button class="btn-logout" onclick="logout()">خروج</button>
             </div>
@@ -589,36 +464,10 @@
                         <option value="">-- اختر مجموعة --</option>
                     </select>
                 </div>
-
                 <div class="form-group">
-                    <label>نوع الامتحان</label>
-                    <div class="exam-type-selector" id="examTypeSelector">
-                        <label class="active" onclick="setExamType('manual')"><input type="radio" name="examType" value="manual" checked> يدوي</label>
-                        <label onclick="setExamType('image')"><input type="radio" name="examType" value="image"> صورة</label>
-                    </div>
-                </div>
-
-                <div class="form-group" id="questionCountSection">
                     <label>عدد الأسئلة</label>
-                    <input type="number" id="examQuestionCount" value="5" min="1" max="100">
+                    <input type="number" id="examQuestionCount" value="5" min="1" max="50">
                 </div>
-
-                <div class="form-group image-upload-section" id="imageUploadSection" style="display:none;">
-                    <label>رفع الصور</label>
-                    <input type="file" id="examImagesInput" accept="image/*" multiple>
-                    <div class="form-group" style="margin-top:10px;">
-                        <label>طريقة عرض الصور</label>
-                        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                            <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="imageTreatment" value="convert" checked> تحويل إلى أسئلة</label>
-                            <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="imageTreatment" value="keep"> إبقاء كصورة</label>
-                        </div>
-                    </div>
-                    <small style="display:block;color:#7f8c8d;margin-top:5px;">
-                        عند اختيار "تحويل إلى أسئلة"، يصبح كل صورة سؤالاً. عند اختيار "إبقاء كصورة" تبقى الصورة كما هي.
-                    </small>
-                    <div id="imagesPreview"></div>
-                </div>
-
                 <div id="examQuestionsContainer"></div>
                 <div style="display:flex;gap:10px;margin-top:15px;">
                     <button type="submit" class="btn btn-success">حفظ ونشر</button>
@@ -672,7 +521,7 @@
             window.location.href = '/login';
         }
 
-        document.getElementById('userDisplay').textContent = 'مرحباً، Mr.Medhat';
+        document.getElementById('userDisplay').textContent = 'مرحباً، Mr. Walid Al-Roudi';
 
         // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -882,16 +731,14 @@
                     return;
                 }
                 let html = `<table>
-                    <thead><tr><th>#</th><th>المجموعة</th><th>نوع الامتحان</th><th>عدد الأسئلة</th><th>الحالة</th><th>الرابط</th><th>الإجراءات</th></tr></thead>
+                    <thead><tr><th>#</th><th>المجموعة</th><th>عدد الأسئلة</th><th>الحالة</th><th>الرابط</th><th>الإجراءات</th></tr></thead>
                     <tbody>`;
                 data.forEach((exam, i) => {
                     const link = `${window.location.origin}/${exam.groupSlug}`;
                     const status = exam.isPublished ? 'منشور' : 'غير منشور';
-                    const examTypeLabel = exam.examType === 'image' ? 'صورة' : 'يدوي';
                     html += `<tr>
                         <td>${i + 1}</td>
                         <td>${exam.groupName || exam.groupSlug}</td>
-                        <td><span class="badge ${exam.examType === 'image' ? 'badge-image' : 'badge-manual'}">${examTypeLabel}</span></td>
                         <td>${exam.questionsCount || 0}</td>
                         <td>${status}</td>
                         <td><a href="${link}" target="_blank">/${exam.groupSlug}</a></td>
@@ -936,152 +783,42 @@
             populateGroupSelects();
             document.getElementById('examQuestionsContainer').innerHTML = '';
             document.getElementById('examQuestionCount').value = 5;
-            document.getElementById('examImagesInput').value = '';
-            document.getElementById('imagesPreview').innerHTML = '';
-            setExamType('manual');
             updateQuestionFields();
             openModal('createExamModal');
         }
 
-        function setExamType(type) {
-            document.querySelectorAll('.exam-type-selector label').forEach(l => l.classList.remove('active'));
-            const labels = document.querySelectorAll('.exam-type-selector label');
-            const inputs = document.querySelectorAll('.exam-type-selector input[name="examType"]');
-            if (type === 'manual') {
-                labels[0].classList.add('active');
-                inputs[0].checked = true;
-                document.getElementById('questionCountSection').style.display = 'block';
-                document.getElementById('imageUploadSection').style.display = 'none';
-            } else {
-                labels[1].classList.add('active');
-                inputs[1].checked = true;
-                document.getElementById('questionCountSection').style.display = 'none';
-                document.getElementById('imageUploadSection').style.display = 'block';
-            }
-            window._currentExamType = type;
-            updateQuestionFields();
-        }
-
-        let uploadedImages = [];
-
-        document.getElementById('examImagesInput').addEventListener('change', function(e) {
-            uploadedImages = [];
-            const preview = document.getElementById('imagesPreview');
-            preview.innerHTML = '';
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
-            let pending = files.length;
-            files.forEach((file, idx) => {
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    uploadedImages.push({ data: ev.target.result, name: file.name });
-                    preview.innerHTML += `
-                        <div class="image-preview-item">
-                            <img src="${ev.target.result}" alt="preview">
-                            <button type="button" class="remove-img" onclick="removeUploadedImage(${idx})">×</button>
-                        </div>
-                    `;
-                    pending--;
-                    if (pending === 0) {
-                        updateQuestionFields();
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
-        });
-
-        function removeUploadedImage(idx) {
-            uploadedImages.splice(idx, 1);
-            const input = document.getElementById('examImagesInput');
-            input.value = '';
-            const preview = document.getElementById('imagesPreview');
-            preview.innerHTML = '';
-            uploadedImages.forEach((img, i) => {
-                preview.innerHTML += `
-                    <div class="image-preview-item">
-                        <img src="${img.data}" alt="preview">
-                        <button type="button" class="remove-img" onclick="removeUploadedImage(${i})">×</button>
-                    </div>
-                `;
-            });
-            updateQuestionFields();
-        }
-
-        function getExamType() {
-            return document.querySelector('.exam-type-selector input[name="examType"]:checked')?.value || 'manual';
-        }
-
         function updateQuestionFields() {
+            const count = parseInt(document.getElementById('examQuestionCount').value) || 5;
             const container = document.getElementById('examQuestionsContainer');
             let html = '';
-
-            if (window._currentExamType === 'image') {
-                const images = uploadedImages.length > 0 ? uploadedImages : [];
-                if (images.length === 0) {
-                    html = '<div class="empty-state">قم برفع صورة واحدة على الأقل.</div>';
-                } else {
-                    images.forEach((img, i) => {
-                        html += generateQuestionField(i, 'image', img.data);
-                    });
-                }
-            } else {
-                const count = parseInt(document.getElementById('examQuestionCount').value) || 5;
-                for (let i = 0; i < count; i++) {
-                    html += generateQuestionField(i, 'manual', null);
-                }
-            }
-            container.innerHTML = html;
-        }
-
-        function generateQuestionField(index, qType, imageData) {
-            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-            let contentInput = '';
-            if (qType === 'image' && imageData) {
-                contentInput = `
-                    <div class="form-group" style="margin-top:5px;">
-                        <img src="${imageData}" class="question-image-preview" alt="صورة السؤال">
-                        <input type="hidden" id="q_image_${index}" value="${encodeURIComponent(imageData)}">
-                    </div>
-                `;
-            } else {
-                contentInput = `
-                    <div class="form-group" style="margin-top:5px;">
-                        <input type="text" id="q_text_${index}" placeholder="نص السؤال" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
-                    </div>
-                `;
-            }
-
-            return `
-                <div class="question-item" id="q_item_${index}">
-                    <div class="q-number">السؤال ${index + 1}</div>
-                    <input type="hidden" id="q_type_${index}" value="${qType}">
-                    ${contentInput}
-                    <div class="answer-mode-selector" style="margin-top:10px;">
-                        <label class="active" onclick="switchAnswerMode(${index}, 'multiple')"><input type="radio" name="answerMode_${index}" value="multiple" checked> اختيار</label>
-                        <label onclick="switchAnswerMode(${index}, 'essay')"><input type="radio" name="answerMode_${index}" value="essay"> مقالي</label>
-                    </div>
-                    <div class="mc-section" id="mc_section_${index}">
+            for (let i = 0; i < count; i++) {
+                html += `
+                    <div class="question-item">
+                        <div class="q-number">السؤال ${i + 1}</div>
+                        <div class="form-group" style="margin-top:5px;">
+                            <input type="text" id="q_text_${i}" placeholder="نص السؤال" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
+                        </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;">
                             <div class="form-group" style="flex:1;min-width:100px;">
                                 <label style="font-size:12px;">الاختيار A</label>
-                                <input type="text" id="q_opt_${index}_0" placeholder="A" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                <input type="text" id="q_opt_${i}_0" placeholder="A" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
                             </div>
                             <div class="form-group" style="flex:1;min-width:100px;">
                                 <label style="font-size:12px;">الاختيار B</label>
-                                <input type="text" id="q_opt_${index}_1" placeholder="B" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                <input type="text" id="q_opt_${i}_1" placeholder="B" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
                             </div>
                             <div class="form-group" style="flex:1;min-width:100px;">
                                 <label style="font-size:12px;">الاختيار C</label>
-                                <input type="text" id="q_opt_${index}_2" placeholder="C" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                <input type="text" id="q_opt_${i}_2" placeholder="C" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
                             </div>
                             <div class="form-group" style="flex:1;min-width:100px;">
                                 <label style="font-size:12px;">الاختيار D</label>
-                                <input type="text" id="q_opt_${index}_3" placeholder="D" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                <input type="text" id="q_opt_${i}_3" placeholder="D" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
                             </div>
                         </div>
                         <div class="form-group" style="margin-top:5px;">
                             <label style="font-size:12px;">الإجابة الصحيحة</label>
-                            <select id="q_correct_${index}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            <select id="q_correct_${i}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
                                 <option value="0">A</option>
                                 <option value="1">B</option>
                                 <option value="2">C</option>
@@ -1089,29 +826,9 @@
                             </select>
                         </div>
                     </div>
-                    <div class="essay-section" id="essay_section_${index}" style="display:none;">
-                        <label style="font-size:12px;font-weight:600;">الإجابة المطلوبة (نص)</label>
-                        <textarea id="q_essay_${index}" placeholder="أدخل الإجابة الصحيحة هنا..."></textarea>
-                    </div>
-                </div>
-            `;
-        }
-
-        function switchAnswerMode(index, mode) {
-            const labels = document.querySelectorAll(`.answer-mode-selector`);
-            const modeLabels = document.querySelectorAll(`#q_item_${index} .answer-mode-selector label`);
-            modeLabels.forEach(l => l.classList.remove('active'));
-            if (mode === 'multiple') {
-                modeLabels[0].classList.add('active');
-                document.getElementById(`mc_section_${index}`).style.display = 'block';
-                document.getElementById(`essay_section_${index}`).style.display = 'none';
-            } else {
-                modeLabels[1].classList.add('active');
-                document.getElementById(`mc_section_${index}`).style.display = 'none';
-                document.getElementById(`essay_section_${index}`).style.display = 'block';
+                `;
             }
-            document.querySelectorAll(`input[name="answerMode_${index}"]`).forEach(inp => inp.checked = false);
-            document.querySelector(`input[name="answerMode_${index}"][value="${mode}"]`).checked = true;
+            container.innerHTML = html;
         }
 
         document.getElementById('examQuestionCount').addEventListener('change', updateQuestionFields);
@@ -1121,77 +838,47 @@
             const groupSelect = document.getElementById('examGroupSelect');
             const groupId = groupSelect.value;
             const groupSlug = groupSelect.options[groupSelect.selectedIndex]?.dataset?.slug;
-            const examType = getExamType();
-            let imageTreatment = 'convert';
+            const count = parseInt(document.getElementById('examQuestionCount').value);
 
             if (!groupId) { alert('الرجاء اختيار مجموعة.'); return; }
 
             const questions = [];
             let valid = true;
-
-            if (examType === 'manual') {
-                const count = parseInt(document.getElementById('examQuestionCount').value) || 5;
-                for (let i = 0; i < count; i++) {
-                    const qType = 'manual';
-                    const answerMode = document.querySelector(`input[name="answerMode_${i}"]:checked`)?.value || 'multiple';
-                    const text = document.getElementById(`q_text_${i}`) ? document.getElementById(`q_text_${i}`).value.trim() : '';
-                    if (!text) { alert(`الرجاء إدخال نص السؤال ${i + 1}`); valid = false; return; }
-                    let questionData = { type: qType, answerMode, text };
-                    if (answerMode === 'multiple') {
-                        const options = [];
-                        for (let j = 0; j < 4; j++) {
-                            const opt = document.getElementById(`q_opt_${i}_${j}`) ? document.getElementById(`q_opt_${i}_${j}`).value.trim() : '';
-                            if (opt) options.push(opt);
-                        }
-                        if (options.length < 2) { alert(`السؤال ${i + 1} يحتاج إلى خيارين على الأقل.`); valid = false; return; }
-                        questionData.options = options;
-                        questionData.correct = parseInt(document.getElementById(`q_correct_${i}`).value);
-                    } else {
-                        const essayAnswer = document.getElementById(`q_essay_${i}`) ? document.getElementById(`q_essay_${i}`).value.trim() : '';
-                        if (!essayAnswer) { alert(`الرجاء إدخال الإجابة المطلوبة للسؤال ${i + 1}`); valid = false; return; }
-                        questionData.essayAnswer = essayAnswer;
-                    }
-                    questions.push(questionData);
+            for (let i = 0; i < count; i++) {
+                const text = document.getElementById(`q_text_${i}`).value.trim();
+                const options = [];
+                for (let j = 0; j < 4; j++) {
+                    const opt = document.getElementById(`q_opt_${i}_${j}`).value.trim();
+                    if (opt) options.push(opt);
                 }
-            } else {
-                const imageTreatment = document.querySelector('input[name="imageTreatment"]:checked')?.value || 'convert';
-                if (uploadedImages.length === 0) { alert('الرجاء رفع صورة واحدة على الأقل.'); return; }
-                uploadedImages.forEach((img, i) => {
-                    const answerMode = document.querySelector(`input[name="answerMode_${i}"]:checked`)?.value || 'multiple';
-                    let questionData = { type: 'image', answerMode, image: img.data, text: '' };
-                    if (answerMode === 'multiple') {
-                        const options = [];
-                        for (let j = 0; j < 4; j++) {
-                            const opt = document.getElementById(`q_opt_${i}_${j}`) ? document.getElementById(`q_opt_${i}_${j}`).value.trim() : '';
-                            if (opt) options.push(opt);
-                        }
-                        if (options.length < 2) { alert(`السؤال ${i + 1} يحتاج إلى خيارين على الأقل.`); valid = false; return; }
-                        questionData.options = options;
-                        questionData.correct = parseInt(document.getElementById(`q_correct_${i}`).value);
-                    } else {
-                        const essayAnswer = document.getElementById(`q_essay_${i}`) ? document.getElementById(`q_essay_${i}`).value.trim() : '';
-                        if (!essayAnswer) { alert(`الرجاء إدخال الإجابة المطلوبة للسؤال ${i + 1}`); valid = false; return; }
-                        questionData.essayAnswer = essayAnswer;
-                    }
-                    questions.push(questionData);
-                });
-                if (!valid) return;
+                const correct = parseInt(document.getElementById(`q_correct_${i}`).value);
+
+                if (!text) {
+                    alert(`الرجاء إدخال نص السؤال ${i + 1}`);
+                    valid = false;
+                    return;
+                }
+                if (options.length < 2) {
+                    alert(`السؤال ${i + 1} يحتاج إلى خيارين على الأقل.`);
+                    valid = false;
+                    return;
+                }
+                questions.push({ text, options, correct });
             }
 
-            if (questions.length === 0) { alert('لا توجد أسئلة صالحة.'); return; }
+            if (!valid) return;
 
             try {
                 const response = await fetch(`${API_URL}/api/exams`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ groupId, groupSlug, questions, examType, imageTreatment })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ groupId, groupSlug, questions })
                 });
                 if (response.status === 401 || response.status === 403) { logout(); return; }
-                if (!response.ok) { const err = await response.json(); alert(err.error || 'حدث خطأ في إنشاء الامتحان.'); return; }
                 closeModal('createExamModal');
-                uploadedImages = [];
-                document.getElementById('examImagesInput').value = '';
-                document.getElementById('imagesPreview').innerHTML = '';
                 loadExams();
             } catch (error) {
                 alert('حدث خطأ في إنشاء الامتحان.');
@@ -1232,7 +919,6 @@
                 let html = `<div style="margin-bottom:15px;padding:10px;background:#f7f9fc;border-radius:8px;">
                     <strong>المجموعة الحالية:</strong> ${exam.groupName || exam.groupSlug}
                     <span style="margin-left:20px;"><strong>عدد الأسئلة:</strong> ${questions.length}</span>
-                    <span style="margin-left:20px;"><strong>نوع الامتحان:</strong> ${exam.examType === 'image' ? 'صورة' : 'يدوي'}</span>
                 </div>`;
 
                 if (questions.length === 0) {
@@ -1240,53 +926,30 @@
                 } else {
                     const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
                     questions.forEach((q, idx) => {
-                        const answerMode = q.answerMode || 'multiple';
-                        const qType = q.type || 'manual';
-                        const isEssay = answerMode === 'essay';
-                        
-                        let imageHtml = '';
-                        if (qType === 'image' && q.image) {
-                            imageHtml = `<img src="${q.image}" class="question-image-preview" alt="صورة السؤال">`;
-                        }
-
                         html += `
-                            <div class="question-item" style="border:2px solid #f39c12;" id="edit_q_item_${idx}">
+                            <div class="question-item" style="border:2px solid #f39c12;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                                    <div class="q-number">السؤال ${idx + 1}
-                                        <span class="exam-type-badge ${qType === 'image' ? 'badge-image' : 'badge-manual'}">${qType === 'image' ? 'صورة' : 'يدوي'}</span>
-                                        <span class="exam-type-badge ${answerMode === 'multiple' ? 'badge-multiple' : 'badge-essay'}">${answerMode === 'multiple' ? 'اختيار' : 'مقالي'}</span>
-                                    </div>
+                                    <div class="q-number">السؤال ${idx + 1}</div>
                                     <button type="button" class="btn btn-danger btn-sm" onclick="deleteQuestionFromExam('${examId}', '${q.id}')">حذف هذا السؤال</button>
                                 </div>
-                                ${imageHtml}
                                 <div class="form-group" style="margin-top:5px;">
-                                    <input type="text" id="edit_q_text_${idx}" value="${(q.text || '').replace(/"/g, '&quot;')}" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;" ${qType === 'image' ? 'readonly' : ''}>
+                                    <input type="text" id="edit_q_text_${idx}" value="${q.text.replace(/"/g, '&quot;')}" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
                                 </div>
-                                <div class="answer-mode-selector" style="margin-top:10px;">
-                                    <label class="${!isEssay ? 'active' : ''}" onclick="switchEditAnswerMode(${idx}, 'multiple')"><input type="radio" name="edit_answerMode_${idx}" value="multiple" ${!isEssay ? 'checked' : ''}> اختيار</label>
-                                    <label class="${isEssay ? 'active' : ''}" onclick="switchEditAnswerMode(${idx}, 'essay')"><input type="radio" name="edit_answerMode_${idx}" value="essay" ${isEssay ? 'checked' : ''}> مقالي</label>
+                                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                                    ${q.options.map((opt, oi) => `
+                                        <div class="form-group" style="flex:1;min-width:80px;">
+                                            <label style="font-size:12px;">${letters[oi]}</label>
+                                            <input type="text" id="edit_q_opt_${idx}_${oi}" value="${opt.replace(/"/g, '&quot;')}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                        </div>
+                                    `).join('')}
                                 </div>
-                                <div class="mc-section" id="edit_mc_section_${idx}" style="${isEssay ? 'display:none;' : ''}">
-                                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                                        ${(q.options || []).map((opt, oi) => `
-                                            <div class="form-group" style="flex:1;min-width:80px;">
-                                                <label style="font-size:12px;">${letters[oi]}</label>
-                                                <input type="text" id="edit_q_opt_${idx}_${oi}" value="${opt.replace(/"/g, '&quot;')}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
-                                            </div>
+                                <div class="form-group" style="margin-top:5px;">
+                                    <label style="font-size:12px;">الإجابة الصحيحة</label>
+                                    <select id="edit_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                                        ${q.options.map((opt, oi) => `
+                                            <option value="${oi}" ${oi === q.correct ? 'selected' : ''}>${letters[oi]}</option>
                                         `).join('')}
-                                    </div>
-                                    <div class="form-group" style="margin-top:5px;">
-                                        <label style="font-size:12px;">الإجابة الصحيحة</label>
-                                        <select id="edit_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
-                                            ${(q.options || []).map((opt, oi) => `
-                                                <option value="${oi}" ${oi === q.correct ? 'selected' : ''}>${letters[oi]}</option>
-                                            `).join('')}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="essay-section" id="edit_essay_section_${idx}" style="${isEssay ? '' : 'display:none;'}">
-                                    <label style="font-size:12px;font-weight:600;">الإجابة المطلوبة (نص)</label>
-                                    <textarea id="edit_q_essay_${idx}" placeholder="أدخل الإجابة الصحيحة هنا...">${(q.essayAnswer || '').replace(/"/g, '&quot;')}</textarea>
+                                    </select>
                                 </div>
                             </div>
                         `;
@@ -1324,68 +987,26 @@
                     <div class="form-group" style="margin-top:5px;">
                         <input type="text" id="new_q_text_${idx}" placeholder="نص السؤال" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:4px;">
                     </div>
-                    <div class="answer-mode-selector" style="margin-top:10px;">
-                        <label class="active" onclick="switchNewAnswerMode(${idx}, 'multiple')"><input type="radio" name="new_answerMode_${idx}" value="multiple" checked> اختيار</label>
-                        <label onclick="switchNewAnswerMode(${idx}, 'essay')"><input type="radio" name="new_answerMode_${idx}" value="essay"> مقالي</label>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        ${['A','B','C','D'].map((letter, oi) => `
+                            <div class="form-group" style="flex:1;min-width:80px;">
+                                <label style="font-size:12px;">${letter}</label>
+                                <input type="text" id="new_q_opt_${idx}_${oi}" placeholder="${letter}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            </div>
+                        `).join('')}
                     </div>
-                    <div class="mc-section" id="new_mc_section_${idx}">
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                            ${['A','B','C','D'].map((letter, oi) => `
-                                <div class="form-group" style="flex:1;min-width:80px;">
-                                    <label style="font-size:12px;">${letter}</label>
-                                    <input type="text" id="new_q_opt_${idx}_${oi}" placeholder="${letter}" style="width:100%;padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="form-group" style="margin-top:5px;">
-                            <label style="font-size:12px;">الإجابة الصحيحة</label>
-                            <select id="new_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
-                                <option value="0">A</option>
-                                <option value="1">B</option>
-                                <option value="2">C</option>
-                                <option value="3">D</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="essay-section" id="new_essay_section_${idx}" style="display:none;">
-                        <label style="font-size:12px;font-weight:600;">الإجابة المطلوبة (نص)</label>
-                        <textarea id="new_q_essay_${idx}" placeholder="أدخل الإجابة الصحيحة هنا..."></textarea>
+                    <div class="form-group" style="margin-top:5px;">
+                        <label style="font-size:12px;">الإجابة الصحيحة</label>
+                        <select id="new_q_correct_${idx}" style="padding:4px 8px;border:1px solid #dce4ec;border-radius:4px;">
+                            <option value="0">A</option>
+                            <option value="1">B</option>
+                            <option value="2">C</option>
+                            <option value="3">D</option>
+                        </select>
                     </div>
                 </div>
             `;
             newQuestionCounter++;
-        }
-
-        function switchNewAnswerMode(idx, mode) {
-            const modeLabels = document.querySelectorAll(`#new_q_${idx} .answer-mode-selector label`);
-            modeLabels.forEach(l => l.classList.remove('active'));
-            if (mode === 'multiple') {
-                modeLabels[0].classList.add('active');
-                document.getElementById(`new_mc_section_${idx}`).style.display = 'block';
-                document.getElementById(`new_essay_section_${idx}`).style.display = 'none';
-            } else {
-                modeLabels[1].classList.add('active');
-                document.getElementById(`new_mc_section_${idx}`).style.display = 'none';
-                document.getElementById(`new_essay_section_${idx}`).style.display = 'block';
-            }
-            document.querySelectorAll(`input[name="new_answerMode_${idx}"]`).forEach(inp => inp.checked = false);
-            document.querySelector(`input[name="new_answerMode_${idx}"][value="${mode}"]`).checked = true;
-        }
-
-        function switchEditAnswerMode(idx, mode) {
-            const modeLabels = document.querySelectorAll(`#edit_q_item_${idx} .answer-mode-selector label`);
-            modeLabels.forEach(l => l.classList.remove('active'));
-            if (mode === 'multiple') {
-                modeLabels[0].classList.add('active');
-                document.getElementById(`edit_mc_section_${idx}`).style.display = 'block';
-                document.getElementById(`edit_essay_section_${idx}`).style.display = 'none';
-            } else {
-                modeLabels[1].classList.add('active');
-                document.getElementById(`edit_mc_section_${idx}`).style.display = 'none';
-                document.getElementById(`edit_essay_section_${idx}`).style.display = 'block';
-            }
-            document.querySelectorAll(`input[name="edit_answerMode_${idx}"]`).forEach(inp => inp.checked = false);
-            document.querySelector(`input[name="edit_answerMode_${idx}"][value="${mode}"]`).checked = true;
         }
 
         async function deleteQuestionFromExam(examId, questionId) {
@@ -1411,79 +1032,35 @@
             
             const existingQuestions = window._editExamQuestions || [];
             for (let i = 0; i < existingQuestions.length; i++) {
-                const q = existingQuestions[i];
-                const qType = q.type || 'manual';
-                const answerMode = document.querySelector(`input[name="edit_answerMode_${i}"]`) ? document.querySelector(`input[name="edit_answerMode_${i}"]:checked`)?.value || 'multiple' : (q.answerMode || 'multiple');
-                let questionData = { id: q.id, type: qType, answerMode };
-
-                const textEl = document.getElementById(`edit_q_text_${i}`);
-                questionData.text = textEl ? textEl.value.trim() : (q.text || '');
-                if (qType === 'image' && q.image) {
-                    questionData.image = q.image;
+                const text = document.getElementById(`edit_q_text_${i}`).value.trim();
+                const options = [];
+                for (let j = 0; j < existingQuestions[i].options.length; j++) {
+                    const opt = document.getElementById(`edit_q_opt_${i}_${j}`).value.trim();
+                    if (opt) options.push(opt);
                 }
-
-                if (answerMode === 'multiple') {
-                    const options = [];
-                    const optCount = q.options ? q.options.length : 4;
-                    for (let j = 0; j < optCount; j++) {
-                        const opt = document.getElementById(`edit_q_opt_${i}_${j}`);
-                        if (opt && opt.value.trim()) options.push(opt.value.trim());
-                    }
-                    if (options.length < 2) {
-                        alert(`السؤال ${i + 1} يحتاج إلى خيارين على الأقل.`);
-                        return;
-                    }
-                    const correctEl = document.getElementById(`edit_q_correct_${i}`);
-                    questionData.options = options;
-                    questionData.correct = correctEl ? parseInt(correctEl.value) : q.correct;
-                } else {
-                    const essayEl = document.getElementById(`edit_q_essay_${i}`);
-                    questionData.essayAnswer = essayEl ? essayEl.value.trim() : (q.essayAnswer || '');
-                    if (!questionData.essayAnswer) {
-                        alert(`الرجاء إدخال الإجابة المطلوبة للسؤال ${i + 1}`);
-                        return;
-                    }
-                    questionData.options = q.options || [];
-                    questionData.correct = q.correct;
+                const correct = parseInt(document.getElementById(`edit_q_correct_${i}`).value);
+                if (text && options.length >= 2) {
+                    questions.push({ id: existingQuestions[i].id, text, options, correct });
                 }
-                questions.push(questionData);
             }
 
             for (let i = 0; i < newQuestionCounter; i++) {
                 const textEl = document.getElementById(`new_q_text_${i}`);
                 if (!textEl) continue;
                 const text = textEl.value.trim();
-                const answerMode = document.querySelector(`input[name="new_answerMode_${i}"]:checked`)?.value || 'multiple';
-                if (!text) {
-                    alert(`السؤال الجديد ${i + 1}: الرجاء إدخال نص السؤال.`);
-                    return;
+                const options = [];
+                for (let j = 0; j < 4; j++) {
+                    const opt = document.getElementById(`new_q_opt_${i}_${j}`);
+                    if (opt && opt.value.trim()) options.push(opt.value.trim());
                 }
-                let questionData = { type: 'manual', answerMode, text };
-                if (answerMode === 'multiple') {
-                    const options = [];
-                    for (let j = 0; j < 4; j++) {
-                        const opt = document.getElementById(`new_q_opt_${i}_${j}`);
-                        if (opt && opt.value.trim()) options.push(opt.value.trim());
-                    }
-                    if (options.length < 2) {
-                        alert(`السؤال الجديد ${i + 1}: يحتاج إلى خيارين على الأقل.`);
-                        return;
-                    }
-                    questionData.options = options;
-                    questionData.correct = parseInt(document.getElementById(`new_q_correct_${i}`).value);
-                } else {
-                    const essayAnswer = document.getElementById(`new_q_essay_${i}`).value.trim();
-                    if (!essayAnswer) {
-                        alert(`السؤال الجديد ${i + 1}: الرجاء إدخال الإجابة المطلوبة.`);
-                        return;
-                    }
-                    questionData.essayAnswer = essayAnswer;
+                const correct = parseInt(document.getElementById(`new_q_correct_${i}`).value);
+                if (text && options.length >= 2) {
+                    questions.push({ text, options, correct });
                 }
-                questions.push(questionData);
             }
 
             if (questions.length === 0) {
-                alert('لا توجد أسئلة صالحة. كل سؤال يحتاج إلى نص وإعدادات إجابة.');
+                alert('لا توجد أسئلة صالحة. كل سؤال يحتاج إلى نص وخيارين على الأقل.');
                 return;
             }
 
@@ -1642,9 +1219,7 @@
                     <div style="margin-bottom:15px;padding:15px;background:#f7f9fc;border-radius:8px;">
                         <strong>👤 الطالب:</strong> ${submission.studentName}<br>
                         <strong>📚 المجموعة:</strong> ${submission.groupSlug}<br>
-                        <strong>📊 النتيجة:</strong> ${submission.correct} / ${submission.total} (${submission.score}%
-                        ${submission.essayPending && submission.essayPending > 0 ? ` | ⏳ ${submission.essayPending} مقالي بانتظار التصحيح` : ''}
-                        )
+                        <strong>📊 النتيجة:</strong> ${submission.correct} / ${submission.total} (${submission.score}%)
                         ${submission.cheatLog && submission.cheatLog.length > 0 ? `<br><strong>⚠️ محاولات غش:</strong> ${submission.cheatLog.length}` : ''}
                     </div>
                     <hr style="margin:10px 0 20px 0;">
@@ -1652,32 +1227,17 @@
 
                 if (submission.results && submission.results.length > 0) {
                     submission.results.forEach((r, i) => {
+                        const userAns = r.userAnswer !== null && r.userAnswer !== undefined ? r.userAnswer : -1;
+                        const correctAns = r.correctAnswer;
+                        const userLetter = userAns >= 0 ? letters[userAns] : '—';
+                        const correctLetter = correctAns >= 0 ? letters[correctAns] : '—';
                         const isCorrect = r.isCorrect === true;
-                        const isEssay = r.answerMode === 'essay';
-                        const isImage = r.type === 'image';
-                        let contentHtml = '';
-
-                        if (isEssay) {
-                            const userAns = (r.userAnswer !== null && r.userAnswer !== undefined) ? r.userAnswer : '';
-                            const expectedAns = r.essayAnswer || '';
-                            contentHtml = `
-                                <div style="margin-top:8px;font-size:14px;">
-                                    <div style="margin-bottom:5px;"><strong>إجابتك:</strong></div>
-                                    <div style="background:#fff;padding:10px;border:1px solid #e8edf3;border-radius:6px;white-space:pre-wrap;">${userAns || '<span style="color:#999;">لم تقدم إجابة</span>'}</div>
-                                </div>
-                                <div style="margin-top:8px;font-size:14px;">
-                                    <div style="margin-bottom:5px;"><strong>الإجابة المتوقعة (من المدرس):</strong></div>
-                                    <div style="background:#e8f5e9;padding:10px;border:1px solid #27ae60;border-radius:6px;white-space:pre-wrap;">${expectedAns || '<span style="color:#999;">لا توجد إجابة متوقعة</span>'}</div>
-                                </div>
-                            `;
-                        } else {
-                            const userAns = (r.userAnswer !== null && r.userAnswer !== undefined && r.userAnswer !== -1) ? r.userAnswer : -1;
-                            const correctAns = r.correctAnswer;
-                            const userLetter = userAns >= 0 ? letters[userAns] : '—';
-                            const correctLetter = correctAns >= 0 ? letters[correctAns] : '—';
-                            contentHtml = `
+                        
+                        html += `
+                            <div class="full-exam-question" style="${isCorrect ? 'border-left:4px solid #27ae60;' : 'border-left:4px solid #e74c3c;'}">
+                                <div class="q-text">${i+1}. ${r.questionText || 'سؤال'}</div>
                                 <div class="options-show">
-                                    ${(r.options || []).map((opt, oi) => {
+                                    ${r.options.map((opt, oi) => {
                                         let cls = 'opt-item';
                                         const isCorrectOpt = oi === correctAns;
                                         const isUserOpt = oi === userAns;
@@ -1694,29 +1254,6 @@
                                             ? `<span style="color:#e74c3c;">❌ إجابة خاطئة (إجابتك: ${userLetter} | الصحيح: ${correctLetter})</span>`
                                             : `<span style="color:#f39c12;">⬜ لم يجب (الصحيح: ${correctLetter})</span>`
                                     }
-                                </div>
-                            `;
-                        }
-
-                        html += `
-                            <div class="full-exam-question" style="${isCorrect ? 'border-left:4px solid #27ae60;' : 'border-left:4px solid #e74c3c;'}">
-                                <div class="q-text">${i+1}. ${r.questionText || 'سؤال'}</div>
-                                ${isImage ? `<img src="${r.image}" class="question-image-preview" style="max-width:300px;max-height:200px;margin:5px 0;">` : ''}
-                                ${contentHtml}
-                            </div>
-                        `;
-                    });
-                } else {
-                    html += '<div class="empty-state">لا توجد تفاصيل للإجابات.</div>';
-                }
-
-                container.innerHTML = html;
-                openModal('answersModal');
-            } catch (error) {
-                alert('حدث خطأ في تحميل إجابات الطالب.');
-                console.error(error);
-            }
-        }
                                 </div>
                             </div>
                         `;
